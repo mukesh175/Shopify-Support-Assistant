@@ -3,4 +3,5 @@ api_version = "2025-01"
 [[extensions]]
 name = "Support Assistant Widget"
 handle = "support-widget"
+uid = "6dbd82fc-4459-6adb-532a-98bd8d383f5704aa7cc4"
 type = "theme"

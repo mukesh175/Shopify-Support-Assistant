@@ -1,0 +1,8 @@
+{
+  "support_assistant": {
+    "title": "Support",
+    "greeting": "Hi! Ask about your order or our policies.",
+    "ask_question": "Ask a question",
+    "track_order": "Track my order"
+  }
+}
