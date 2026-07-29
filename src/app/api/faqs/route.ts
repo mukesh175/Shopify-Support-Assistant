@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySessionToken, ensureOfflineToken } from '@/lib/auth/session';
+import { verifySessionToken, ensureOfflineToken, getShopToken } from '@/lib/auth/session';
+import { getActivePlan } from '@/lib/shopify/billing';
 import { db, schema } from '@/lib/db';
-import { and, eq, desc } from 'drizzle-orm';
+import { and, eq, desc, sql } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
@@ -33,6 +34,24 @@ export async function POST(req: NextRequest) {
     const { question, answer } = await req.json();
     if (!question?.trim() || !answer?.trim()) {
       return NextResponse.json({ error: 'question and answer required' }, { status: 400 });
+    }
+
+    // Free tier caps the number of FAQs — a natural upgrade trigger.
+    const token = await getShopToken(shopDomain);
+    if (token) {
+      const plan = await getActivePlan(shopDomain, token);
+      if (plan.maxFaqs !== null) {
+        const [{ c }] = await db
+          .select({ c: sql<number>`count(*)` })
+          .from(schema.faqs)
+          .where(eq(schema.faqs.shopDomain, shopDomain));
+        if (Number(c) >= plan.maxFaqs) {
+          return NextResponse.json(
+            { error: `Free plan is limited to ${plan.maxFaqs} Q&As. Upgrade to Pro for unlimited.` },
+            { status: 402 }
+          );
+        }
+      }
     }
     const [row] = await db
       .insert(schema.faqs)

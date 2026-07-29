@@ -8,6 +8,7 @@
   data-proxy-url="{{ block.settings.proxy_subpath }}"
   data-accent="{{ block.settings.accent_color }}"
   data-greeting="{{ block.settings.greeting | escape }}"
+  data-whatsapp="{{ block.settings.whatsapp_number }}"
 ></div>
 
 <link
@@ -42,6 +43,13 @@
       "id": "greeting",
       "label": "Greeting message",
       "default": "Hi! Ask about your order or our policies."
+    },
+    {
+      "type": "text",
+      "id": "whatsapp_number",
+      "label": "WhatsApp number (with country code, digits only)",
+      "info": "e.g. 919876543210. Leave blank to hide the WhatsApp button.",
+      "default": ""
     }
   ]
 }

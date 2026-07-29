@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import PlanBanner from './PlanBanner';
 
 const card: React.CSSProperties = {
   background: '#fff',
@@ -12,6 +13,7 @@ const card: React.CSSProperties = {
 export default function Home() {
   return (
     <main style={{ padding: 24 }}>
+      <PlanBanner />
       <div style={card}>
         <h1 style={{ margin: '0 0 8px', fontSize: 22 }}>Support Assistant</h1>
         <p style={{ color: '#616161', marginTop: 0 }}>

@@ -5,8 +5,8 @@
   var PROXY = root.dataset.proxyUrl || '/apps/support/query';
   var ACCENT = root.dataset.accent || '#1a1a1a';
   var GREETING = root.dataset.greeting || 'Hi! Ask about your order or our policies.';
+  var WHATSAPP = (root.dataset.whatsapp || '').replace(/[^0-9]/g, '');
 
-  // ---- build DOM ----
   var launcher = el('button', 'sa-launcher', '💬');
   launcher.style.background = ACCENT;
 
@@ -17,6 +17,7 @@
     '<div class="sa-quick">' +
     '<button data-q="faq">Ask a question</button>' +
     '<button data-q="order">Track my order</button>' +
+    (WHATSAPP ? '<button data-q="wa">WhatsApp us</button>' : '') +
     '</div>' +
     '<form class="sa-order-form">' +
     '<input name="orderName" placeholder="Order number e.g. #1001" required>' +
@@ -47,6 +48,8 @@
       if (b.dataset.q === 'order') {
         orderForm.classList.add('sa-show');
         bot('Enter your order number and email, and I’ll check the status.');
+      } else if (b.dataset.q === 'wa') {
+        openWhatsApp('Hi, I need help with my order.');
       } else {
         orderForm.classList.remove('sa-show');
         textInput.focus();
@@ -87,24 +90,36 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         typing.textContent = data.text || 'Sorry, something went wrong.';
+        // If AI couldn't resolve (or hit a limit), offer WhatsApp handoff.
+        if (WHATSAPP && (data.kind === 'unresolved' || data.kind === 'limit')) {
+          offerWhatsApp(payload.message || 'my question');
+        }
       })
       .catch(function () {
         typing.textContent = 'Sorry, I could not reach support right now.';
+        if (WHATSAPP) offerWhatsApp(payload.message || 'my question');
       });
   }
 
-  // ---- helpers ----
+  function offerWhatsApp(question) {
+    var btn = el('button', 'sa-wa-btn', '💬 Continue on WhatsApp');
+    btn.addEventListener('click', function () { openWhatsApp(question); });
+    body.appendChild(btn);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function openWhatsApp(text) {
+    var url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(text);
+    window.open(url, '_blank');
+  }
+
   function bot(text) {
     var m = el('div', 'sa-msg sa-bot', text);
-    body.appendChild(m);
-    body.scrollTop = body.scrollHeight;
-    return m;
+    body.appendChild(m); body.scrollTop = body.scrollHeight; return m;
   }
   function user(text) {
     var m = el('div', 'sa-msg sa-user', text);
-    body.appendChild(m);
-    body.scrollTop = body.scrollHeight;
-    return m;
+    body.appendChild(m); body.scrollTop = body.scrollHeight; return m;
   }
   function el(tag, cls, text) {
     var e = document.createElement(tag);
