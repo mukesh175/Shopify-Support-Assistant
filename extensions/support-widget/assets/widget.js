@@ -109,8 +109,17 @@
   }
 
   function openWhatsApp(text) {
-    var url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(text);
-    window.open(url, '_blank');
+    var num = WHATSAPP;
+    var url = 'https://wa.me/' + num + '?text=' + encodeURIComponent(text);
+    // A real anchor click opens a genuine top-level tab. window.open() often
+    // gets blocked (ERR_BLOCKED_BY_RESPONSE) inside sandboxed storefront iframes.
+    var a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   function bot(text) {
