@@ -4,7 +4,7 @@
 
 client_id = "ec0d635c1ad9d7b09c968c797dd03d85"
 name = "Support Assistant"
-handle = "support-assistant"
+handle = "smukesh-support-app"
 application_url = "https://shopify-support-assistant.vercel.app"
 embedded = true
 
