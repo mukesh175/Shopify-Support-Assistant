@@ -1,22 +1,21 @@
 import type { Metadata } from 'next';
-import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: 'Support Assistant',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const apiKey = process.env.SHOPIFY_API_KEY;
+  const apiKey = process.env.SHOPIFY_API_KEY ?? '';
   return (
     <html lang="en">
       <head>
-        {/* App Bridge v4 must load FIRST, before any other script, with the
-            api-key meta. It provides shopify.idToken() = session token. */}
+        {/* App Bridge v4 requirements:
+            1) the api-key meta tag, and
+            2) the app-bridge.js script must be the FIRST script in <head>.
+            We render a plain <script> (not next/script) to guarantee ordering. */}
         <meta name="shopify-api-key" content={apiKey} />
-        <Script
-          src="https://cdn.shopify.com/shopifycloud/app-bridge.js"
-          strategy="beforeInteractive"
-        />
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
       </head>
       <body
         style={{
