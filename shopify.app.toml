@@ -1,0 +1,43 @@
+# Shopify app configuration. Run `shopify app config link` to bind this to your
+# app in the Partner Dashboard, then `shopify app deploy` to push config.
+# Replace CLIENT_ID and the URLs with your own.
+
+client_id = "REPLACE_WITH_CLIENT_ID"
+name = "Support Assistant"
+handle = "support-assistant"
+application_url = "https://your-app.vercel.app"
+embedded = true
+
+[access_scopes]
+scopes = "read_orders,read_customers"
+# Managed installation: Shopify installs the app and manages scope grants.
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [
+  "https://your-app.vercel.app/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2025-01"
+
+  [[webhooks.subscriptions]]
+  topics = ["app/uninstalled"]
+  uri = "https://your-app.vercel.app/api/webhooks"
+
+  [[webhooks.subscriptions]]
+  topics = ["customers/data_request", "customers/redact", "shop/redact"]
+  uri = "https://your-app.vercel.app/api/webhooks"
+
+# App Proxy: lets the storefront widget call our backend through Shopify with a
+# signed request. Storefront path /apps/support/* -> our /api/proxy/*.
+[app_proxy]
+url = "https://your-app.vercel.app/api/proxy"
+subpath = "support"
+prefix = "apps"
+
+[pos]
+embedded = false
+
+[build]
+automatically_update_urls_on_dev = true

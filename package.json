@@ -1,0 +1,35 @@
+{
+  "name": "support-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI support + order-status deflection widget for Shopify (Next.js + Neon + Vercel)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "shopify:dev": "shopify app dev",
+    "shopify:deploy": "shopify app deploy"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "@shopify/shopify-api": "^11.6.0",
+    "drizzle-orm": "^0.36.4",
+    "next": "^15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "@types/react": "^19.0.7",
+    "@types/react-dom": "^19.0.3",
+    "drizzle-kit": "^0.28.1",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,6 @@
+api_version = "2025-01"
+
+[[extensions]]
+name = "Support Assistant Widget"
+handle = "support-widget"
+type = "theme"

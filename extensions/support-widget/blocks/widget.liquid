@@ -1,0 +1,48 @@
+{% comment %}
+  App embed block. Merchant enables this under Theme Customize > App embeds.
+  It renders a floating support button on every storefront page.
+{% endcomment %}
+
+<div
+  id="support-assistant-root"
+  data-proxy-url="{{ block.settings.proxy_subpath }}"
+  data-accent="{{ block.settings.accent_color }}"
+  data-greeting="{{ block.settings.greeting | escape }}"
+></div>
+
+<link
+  rel="stylesheet"
+  href="{{ 'widget.css' | asset_url }}"
+>
+<script
+  src="{{ 'widget.js' | asset_url }}"
+  defer
+></script>
+
+{% schema %}
+{
+  "name": "Support Assistant",
+  "target": "body",
+  "settings": [
+    {
+      "type": "text",
+      "id": "proxy_subpath",
+      "label": "App proxy path",
+      "default": "/apps/support/query",
+      "info": "Must match the App Proxy subpath configured in your app settings."
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent color",
+      "default": "#1a1a1a"
+    },
+    {
+      "type": "text",
+      "id": "greeting",
+      "label": "Greeting message",
+      "default": "Hi! Ask about your order or our policies."
+    }
+  ]
+}
+{% endschema %}
