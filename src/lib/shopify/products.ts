@@ -21,6 +21,7 @@ const SEARCH_QUERY = /* GraphQL */ `
           handle
           onlineStoreUrl
           featuredImage { url }
+          images(first: 1) { edges { node { url } } }
           priceRangeV2 { minVariantPrice { amount currencyCode } }
           totalInventory
         }
@@ -54,11 +55,14 @@ async function fetchCandidates(
 
 function toRec(node: any, shopDomain: string): ProductRec {
   const price = node?.priceRangeV2?.minVariantPrice;
-  const store = shopDomain.replace('.myshopify.com', '');
+  const image =
+    node?.featuredImage?.url ??
+    node?.images?.edges?.[0]?.node?.url ??
+    null;
   return {
     title: node.title,
     price: price ? `${price.currencyCode} ${Number(price.amount).toFixed(0)}` : '',
-    image: node?.featuredImage?.url ?? null,
+    image,
     url:
       node.onlineStoreUrl ||
       `https://${shopDomain}/products/${node.handle}`,

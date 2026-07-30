@@ -125,7 +125,10 @@
     var wrap = el('div', 'sa-products');
     products.forEach(function (p) {
       var card = el('a', 'sa-card'); card.href = p.url; card.target = '_top';
-      card.innerHTML = '<div class="sa-card-img" style="background-image:url(' + (p.image || '') + ')"></div>' +
+      var imgHtml = p.image
+        ? '<div class="sa-card-img" style="background-image:url(' + p.image + ')"></div>'
+        : '<div class="sa-card-img sa-card-noimg">' + escapeHtml((p.title || '?').charAt(0).toUpperCase()) + '</div>';
+      card.innerHTML = imgHtml +
         '<div class="sa-card-info"><div class="sa-card-title">' + escapeHtml(p.title) + '</div>' +
         '<div class="sa-card-price">' + escapeHtml(p.price || '') + '</div></div>';
       wrap.appendChild(card);
