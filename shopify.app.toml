@@ -5,7 +5,7 @@
 client_id = "ec0d635c1ad9d7b09c968c797dd03d85"
 name = "Zappy"
 handle = "smukesh-support-app"
-application_url = "https://shopify-support-assistant.vercel.app"
+application_url = "https://zappy-assistant.vercel.app"
 embedded = true
 
 [access_scopes]
@@ -15,7 +15,7 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://shopify-support-assistant.vercel.app/api/auth/callback"
+  "https://zappy-assistant.vercel.app/api/auth/callback"
 ]
 
 [webhooks]
@@ -23,16 +23,16 @@ api_version = "2025-01"
 
   [[webhooks.subscriptions]]
   topics = ["app/uninstalled"]
-  uri = "https://shopify-support-assistant.vercel.app/api/webhooks"
+  uri = "https://zappy-assistant.vercel.app/api/webhooks"
 
   [[webhooks.subscriptions]]
   compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
-  uri = "https://shopify-support-assistant.vercel.app/api/webhooks"
+  uri = "https://zappy-assistant.vercel.app/api/webhooks"
 
 # App Proxy: lets the storefront widget call our backend through Shopify with a
 # signed request. Storefront path /apps/support/* -> our /api/proxy/*.
 [app_proxy]
-url = "https://shopify-support-assistant.vercel.app/api/proxy"
+url = "https://zappy-assistant.vercel.app/api/proxy"
 subpath = "support"
 prefix = "apps"
 
