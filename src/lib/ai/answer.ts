@@ -85,7 +85,7 @@ async function runLLM(system: string, user: string): Promise<string | null> {
 /** Turn a natural-language shopping request into 2-5 search keywords. */
 export async function extractKeywords(request: string): Promise<string> {
   const out = await runLLM(
-    `Extract 2-5 product search keywords from the shopping request. Output ONLY the keywords separated by spaces, no punctuation, no explanation. Translate non-English requests to English keywords.`,
+    `Extract 2-5 product search keywords from the shopping request. IGNORE price/budget words (under, below, over, $, rupees, cheap, expensive, numbers used as price). Focus on product type, category, color, use, recipient. Output ONLY keywords separated by spaces, no punctuation, no explanation. Translate non-English requests to English keywords. If the request is ONLY about price with no product type, output nothing.`,
     `Request: ${request}`
   );
   return (out ?? '').replace(/[\n"']/g, ' ').trim();

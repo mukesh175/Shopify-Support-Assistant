@@ -35,7 +35,7 @@ async function fetchCandidates(
   keywords: string
 ): Promise<any[]> {
   // Broaden the search: match title/tag/product_type, in stock preferred.
-  const q = `${keywords} status:active`;
+  const q = `${keywords} status:active`.trim();
   const res = await fetch(
     `https://${shopDomain}/admin/api/${LATEST_API_VERSION}/graphql.json`,
     {
@@ -66,9 +66,31 @@ function toRec(node: any, shopDomain: string): ProductRec {
   };
 }
 
+function priceOf(node: any): number {
+  return Number(node?.priceRangeV2?.minVariantPrice?.amount ?? NaN);
+}
+
+// Extract a price constraint from the customer's words. Handles: "under 500",
+// "below $500", "less than 2000", "over 300", "between 100 and 500", "100-500".
+function parsePriceRange(text: string): { min: number; max: number } {
+  const t = text.toLowerCase().replace(/[,₹$]/g, '');
+  let min = 0, max = Infinity;
+  let m;
+  if ((m = t.match(/between\s+(\d+)\s+and\s+(\d+)/))) { min = +m[1]; max = +m[2]; }
+  else if ((m = t.match(/(\d+)\s*[-to]+\s*(\d+)/))) { min = +m[1]; max = +m[2]; }
+  else if ((m = t.match(/(?:under|below|less than|upto|up to|max|cheaper than)\s*(\d+)/))) { max = +m[1]; }
+  else if ((m = t.match(/(?:over|above|more than|min|starting)\s*(\d+)/))) { min = +m[1]; }
+  return { min, max };
+}
+
+// Fetch all active products (used when a keyword search returns nothing, e.g.
+// vague requests like "gift" — we still want candidates to price-filter/rank).
+async function fetchAll(shopDomain: string, accessToken: string): Promise<any[]> {
+  return fetchCandidates(shopDomain, accessToken, '');
+}
+
 /**
  * Given a natural-language customer request, return up to `limit` product recs.
- * `keywordExtractor` and `ranker` both use the LLM (provider-abstracted).
  */
 export async function recommendProducts(
   shopDomain: string,
@@ -80,22 +102,39 @@ export async function recommendProducts(
   },
   limit = 3
 ): Promise<ProductRec[]> {
-  // 1) Turn the request into search keywords (e.g. "gift for my mom" -> "women gift")
+  const { min, max } = parsePriceRange(request);
+  const hasPriceFilter = min > 0 || max < Infinity;
+
+  // 1) Keywords (price words are ignored by the extractor prompt)
   const keywords = (await llm.keywords(request)) || request;
 
-  // 2) Fetch candidates from the store
+  // 2) Fetch candidates. If keyword search is empty, or the request is mostly a
+  //    price filter, fall back to browsing all products so price filter works.
   let candidates = await fetchCandidates(shopDomain, accessToken, keywords);
   if (candidates.length === 0) {
-    // fallback: try the raw request
     candidates = await fetchCandidates(shopDomain, accessToken, request);
   }
+  if (candidates.length === 0 && hasPriceFilter) {
+    candidates = await fetchAll(shopDomain, accessToken);
+  }
   if (candidates.length === 0) return [];
+
+  // 2b) Apply the price filter in code (Shopify search can't do price ranges)
+  if (hasPriceFilter) {
+    const filtered = candidates.filter((n) => {
+      const p = priceOf(n);
+      return !Number.isNaN(p) && p >= min && p <= max;
+    });
+    if (filtered.length > 0) candidates = filtered;
+    // if nothing matches the price, we return empty rather than wrong-priced items
+    else return [];
+  }
 
   // 3) Ask the LLM to rank which candidates best fit the request
   const brief = candidates.slice(0, 15).map((n, i) => ({
     i,
     title: n.title,
-    price: n?.priceRangeV2?.minVariantPrice?.amount ?? '',
+    price: String(priceOf(n) || ''),
   }));
   let order: number[] = [];
   try {
@@ -110,7 +149,6 @@ export async function recommendProducts(
     .slice(0, limit)
     .map((i) => toRec(candidates[i], shopDomain));
 
-  // if ranking returned nothing usable, fall back to first few
   if (picked.length === 0) {
     return candidates.slice(0, limit).map((n) => toRec(n, shopDomain));
   }
