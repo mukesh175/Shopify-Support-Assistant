@@ -91,6 +91,63 @@ function buildTimeline(node: any): TimelineStep[] {
   return steps;
 }
 
+export type OrderSummary = {
+  name: string;
+  createdAt: string;
+  fulfillmentStatus: string;
+  financialStatus: string;
+};
+
+const LIST_QUERY = /* GraphQL */ `
+  query OrdersByEmail($q: String!) {
+    orders(first: 10, query: $q, sortKey: CREATED_AT, reverse: true) {
+      edges {
+        node {
+          name
+          email
+          createdAt
+          displayFulfillmentStatus
+          displayFinancialStatus
+        }
+      }
+    }
+  }
+`;
+
+// List a customer's recent orders by email (order number + date + status only —
+// no personal details — so a shopper can identify which order to open).
+export async function listOrdersByEmail(
+  shopDomain: string,
+  accessToken: string,
+  email: string
+): Promise<OrderSummary[]> {
+  const clean = email.trim().toLowerCase();
+  const q = `email:${clean}`;
+  const res = await fetch(
+    `https://${shopDomain}/admin/api/${LATEST_API_VERSION}/graphql.json`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken,
+      },
+      body: JSON.stringify({ query: LIST_QUERY, variables: { q } }),
+    }
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  const edges = data?.data?.orders?.edges ?? [];
+  return edges
+    .map((e: any) => e.node)
+    .filter((n: any) => n.email?.toLowerCase() === clean) // exact email match
+    .map((n: any) => ({
+      name: n.name,
+      createdAt: n.createdAt,
+      fulfillmentStatus: n.displayFulfillmentStatus,
+      financialStatus: n.displayFinancialStatus,
+    }));
+}
+
 export async function lookupOrder(
   shopDomain: string,
   accessToken: string,

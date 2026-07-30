@@ -52,6 +52,9 @@
       '<input name="orderName" placeholder="Order number e.g. #1001" required>' +
       '<input name="email" type="email" placeholder="Email used at checkout" required>' +
       '<button type="submit" style="background:' + ACCENT + ';color:' + TEXTCOLOR + '">Check status</button></form>' +
+    '<form class="sa-email-form">' +
+      '<input name="email" type="email" placeholder="Email used at checkout" required>' +
+      '<button type="submit" style="background:' + ACCENT + ';color:' + TEXTCOLOR + '">Find my orders</button></form>' +
     '<div class="sa-inputbar">' +
       '<input type="text" placeholder="Type your message…">' +
       '<button class="sa-send" style="background:' + ACCENT + ';color:' + TEXTCOLOR + '" aria-label="Send">→</button></div>';
@@ -78,8 +81,10 @@
   var textInput = panel.querySelector('.sa-inputbar input');
   var sendBtn = panel.querySelector('.sa-send');
   var orderForm = panel.querySelector('.sa-order-form');
+  var emailForm = panel.querySelector('.sa-email-form');
   var mode = 'faq';
   var greeted = false;
+  var lastEmail = '';
 
   function open() {
     panel.classList.add('sa-open');
@@ -117,7 +122,7 @@
   panel.querySelectorAll('.sa-quick button').forEach(function (b) {
     b.addEventListener('click', function () {
       var q = b.dataset.q;
-      if (q === 'order') { orderForm.classList.add('sa-show'); bot('Enter your order number and email, and I’ll check the status.'); }
+      if (q === 'order') { showOrderChoice(); }
       else if (q === 'wa') { openWhatsApp('Hi, I need help.'); }
       else if (q === 'product') { mode = 'product'; orderForm.classList.remove('sa-show'); textInput.placeholder = 'What are you looking for?'; bot('What are you looking for? e.g. "black snowboard" or "gift under $500".'); textInput.focus(); }
       else { mode = 'faq'; orderForm.classList.remove('sa-show'); textInput.placeholder = 'Type your question…'; textInput.focus(); }
@@ -131,8 +136,18 @@
     e.preventDefault();
     var name = orderForm.orderName.value.trim(), email = orderForm.email.value.trim();
     if (!name || !email) return;
+    lastEmail = email;
     user('Track order ' + name); orderForm.classList.remove('sa-show');
     post({ intent: 'order', orderName: name, email: email });
+  });
+
+  emailForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var email = emailForm.email.value.trim();
+    if (!email) return;
+    lastEmail = email;
+    user(email); emailForm.classList.remove('sa-show');
+    post({ intent: 'orders_by_email', email: email });
   });
 
   function sendText() {
@@ -151,6 +166,7 @@
         if (data.kind === 'order_status' && data.timeline && data.timeline.length) {
           renderTimeline(data.timeline, data.trackingUrl);
         }
+        if (data.kind === 'order_list' && data.orders && data.orders.length) renderOrderList(data.orders);
         if (data.kind === 'recommend' && data.products && data.products.length) renderProducts(data.products);
         if (WHATSAPP && (data.kind === 'unresolved' || data.kind === 'limit' || data.kind === 'recommend_locked')) offerWhatsApp(payload.message || 'my question');
       })
@@ -158,6 +174,33 @@
         typing.remove(); bot('Sorry, I could not reach support right now.');
         if (WHATSAPP) offerWhatsApp(payload.message || 'my question');
       });
+  }
+
+  function showOrderChoice() {
+    bot('How would you like to track your order?');
+    var wrap = el('div', 'sa-suggests');
+    var b1 = el('button', 'sa-suggest', '🔢 I have my order number');
+    var b2 = el('button', 'sa-suggest', '📧 Find my orders by email');
+    b1.addEventListener('click', function () { wrap.remove(); orderForm.classList.add('sa-show'); emailForm.classList.remove('sa-show'); bot('Enter your order number and email:'); });
+    b2.addEventListener('click', function () { wrap.remove(); emailForm.classList.add('sa-show'); orderForm.classList.remove('sa-show'); bot('Enter the email you used at checkout and I’ll list your orders:'); });
+    wrap.appendChild(b1); wrap.appendChild(b2);
+    body.appendChild(wrap); body.scrollTop = body.scrollHeight;
+  }
+
+  function renderOrderList(orders) {
+    var wrap = el('div', 'sa-products');
+    orders.forEach(function (o) {
+      var card = el('button', 'sa-order-item');
+      card.innerHTML = '<div class="sa-oi-left"><div class="sa-oi-name">' + escapeHtml(o.name) + '</div>' +
+        '<div class="sa-oi-date">' + fmtDate(o.createdAt) + '</div></div>' +
+        '<div class="sa-oi-status">' + escapeHtml((o.fulfillmentStatus || '').toLowerCase()) + ' ›</div>';
+      card.addEventListener('click', function () {
+        user('Check ' + o.name);
+        post({ intent: 'order', orderName: o.name, email: lastEmail });
+      });
+      wrap.appendChild(card);
+    });
+    body.appendChild(wrap); body.scrollTop = body.scrollHeight;
   }
 
   function renderTimeline(steps, trackingUrl) {

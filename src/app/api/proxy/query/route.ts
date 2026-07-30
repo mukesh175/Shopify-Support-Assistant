@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAppProxySignature } from '@/lib/auth/appProxy';
 import { getShopToken } from '@/lib/auth/session';
-import { lookupOrder } from '@/lib/shopify/orders';
+import { lookupOrder, listOrdersByEmail } from '@/lib/shopify/orders';
 import { answerFromKnowledge, extractKeywords, rankProducts } from '@/lib/ai/answer';
 import { getActivePlan } from '@/lib/shopify/billing';
 import { recommendProducts } from '@/lib/shopify/products';
@@ -45,12 +45,29 @@ export async function POST(req: NextRequest) {
     message?: string;
     orderName?: string;
     email?: string;
-    intent?: 'order' | 'faq' | 'product';
+    intent?: 'order' | 'orders_by_email' | 'faq' | 'product';
   };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'bad json' }, { status: 400 });
+  }
+
+  // ---- List orders by email (customer doesn't know order number) ----
+  if (body.intent === 'orders_by_email' && body.email) {
+    const token = await getShopToken(shopDomain);
+    if (!token) {
+      return NextResponse.json({ kind: 'error', text: 'App not connected.' });
+    }
+    const orders = await listOrdersByEmail(shopDomain, token, body.email);
+    await logQuery(shopDomain, 'list: ' + body.email, `${orders.length} orders`, 'order_status', orders.length > 0);
+    return NextResponse.json({
+      kind: 'order_list',
+      text: orders.length
+        ? 'Here are your recent orders — tap one to see its status:'
+        : "I couldn't find any orders for that email. Please check the spelling, or the email used at checkout.",
+      orders,
+    });
   }
 
   // ---- Order status intent ----
