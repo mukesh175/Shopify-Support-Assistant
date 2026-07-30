@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Support Assistant',
+  title: 'Zappy',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             zIndex: 10,
           }}
         >
-          <span style={{ fontWeight: 700, marginRight: 16 }}>🛟 Support Assistant</span>
+          <span style={{ fontWeight: 700, marginRight: 16 }}>⚡ Zappy</span>
           <NavLink href="/" label="Home" />
           <NavLink href="/faqs" label="Knowledge base" />
           <NavLink href="/analytics" label="Analytics" />

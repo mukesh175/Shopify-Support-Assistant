@@ -1,6 +1,6 @@
 api_version = "2025-01"
 
 [[extensions]]
-name = "Support Assistant Widget"
+name = "Zappy Widget"
 handle = "support-widget"
 type = "theme"

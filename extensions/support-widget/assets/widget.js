@@ -59,6 +59,17 @@
   if (pop) document.body.appendChild(pop);
   document.body.appendChild(panel);
 
+  // "Powered by" branding footer — shown by default, hidden on Pro plan.
+  var brandFoot = el('div', 'sa-brand', '⚡ Powered by Zappy');
+  panel.appendChild(brandFoot);
+  (function loadConfig() {
+    var configUrl = PROXY.replace(/\/query$/, '/config');
+    fetch(configUrl, { method: 'GET' })
+      .then(function (r) { return r.json(); })
+      .then(function (cfg) { if (cfg && cfg.branding === false) brandFoot.style.display = 'none'; })
+      .catch(function () {});
+  })();
+
   var body = panel.querySelector('.sa-body');
   var textInput = panel.querySelector('.sa-inputbar input');
   var sendBtn = panel.querySelector('.sa-send');

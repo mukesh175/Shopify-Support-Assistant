@@ -1,4 +1,4 @@
-# Support Assistant — Shopify AI support + order-status widget
+# Zappy — Shopify AI support + order-status widget
 
 A storefront widget that answers customer questions from your knowledge base and
 looks up order status — so fewer "where is my order?" tickets reach the merchant.
@@ -54,7 +54,7 @@ npm run db:push           # creates tables in Neon
 - `npm run shopify:dev` (installs on your dev store via the CLI), **or** open the
   app's install link from the Partner Dashboard.
 - On the storefront: **Online Store → Themes → Customize → App embeds →** enable
-  **Support Assistant**. The widget appears bottom-right.
+  **Zappy**. The widget appears bottom-right.
 
 ## Notes & guardrails
 - **Vercel Hobby is non-commercial.** Fine for building/testing. Once you have a

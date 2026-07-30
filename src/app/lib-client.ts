@@ -18,7 +18,7 @@ async function waitForAppBridge(timeoutMs = 5000): Promise<void> {
     await new Promise((r) => setTimeout(r, 100));
   }
   throw new Error(
-    'App Bridge not found. Open this app from your Shopify admin (Apps → Support Assistant), not directly by URL.'
+    'App Bridge not found. Open this app from your Shopify admin (Apps → Zappy), not directly by URL.'
   );
 }
 

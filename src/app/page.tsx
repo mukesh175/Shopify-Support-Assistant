@@ -41,7 +41,7 @@ export default function Home() {
           <b style={{ fontSize: 14 }}>Get set up in 3 steps</b>
           <ol style={{ lineHeight: 1.9, paddingLeft: 20, marginTop: 8, color: '#42474c' }}>
             <li>Add your common answers in the <Link href="/faqs" style={{ color: '#2c6ecb' }}>Knowledge base</Link>.</li>
-            <li>Enable the <b>Support Assistant</b> app embed (Online Store → Themes → Customize → App embeds).</li>
+            <li>Enable the <b>Zappy</b> app embed (Online Store → Themes → Customize → App embeds).</li>
             <li>Done — the chat widget appears on your storefront.</li>
           </ol>
         </div>
