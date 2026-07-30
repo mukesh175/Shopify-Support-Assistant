@@ -31,6 +31,7 @@ const QUERY = /* GraphQL */ `
         node {
           name
           email
+          customer { email }
           createdAt
           displayFinancialStatus
           displayFulfillmentStatus
@@ -105,6 +106,7 @@ const LIST_QUERY = /* GraphQL */ `
         node {
           name
           email
+          customer { email }
           createdAt
           displayFulfillmentStatus
           displayFinancialStatus
@@ -122,7 +124,7 @@ export async function listOrdersByEmail(
   email: string
 ): Promise<OrderSummary[]> {
   const clean = email.trim().toLowerCase();
-  const q = `email:${clean}`;
+  const q = `email:'${clean}'`;
   const res = await fetch(
     `https://${shopDomain}/admin/api/${LATEST_API_VERSION}/graphql.json`,
     {
@@ -139,7 +141,11 @@ export async function listOrdersByEmail(
   const edges = data?.data?.orders?.edges ?? [];
   return edges
     .map((e: any) => e.node)
-    .filter((n: any) => n.email?.toLowerCase() === clean) // exact email match
+    .filter((n: any) => {
+      const oe = (n.email || '').toLowerCase();
+      const ce = (n.customer?.email || '').toLowerCase();
+      return oe === clean || ce === clean;
+    })
     .map((n: any) => ({
       name: n.name,
       createdAt: n.createdAt,
@@ -155,7 +161,7 @@ export async function lookupOrder(
   email: string
 ): Promise<OrderStatus> {
   const cleanName = orderName.replace(/^#/, '').trim();
-  const q = `name:${cleanName} email:${email.trim()}`;
+  const q = `name:${cleanName} email:'${email.trim().toLowerCase()}'`;
 
   const res = await fetch(
     `https://${shopDomain}/admin/api/${LATEST_API_VERSION}/graphql.json`,
@@ -174,7 +180,10 @@ export async function lookupOrder(
   const node = data?.data?.orders?.edges?.[0]?.node;
   if (!node) return { found: false };
 
-  if (node.email?.toLowerCase() !== email.trim().toLowerCase()) {
+  const wantEmail = email.trim().toLowerCase();
+  const orderEmail = (node.email || '').toLowerCase();
+  const custEmail = (node.customer?.email || '').toLowerCase();
+  if (orderEmail !== wantEmail && custEmail !== wantEmail) {
     return { found: false };
   }
 
