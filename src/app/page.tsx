@@ -2,55 +2,84 @@ import Link from 'next/link';
 import PlanBanner from './PlanBanner';
 
 const card: React.CSSProperties = {
-  background: '#fff',
-  border: '1px solid #e1e3e5',
-  borderRadius: 12,
-  padding: 24,
-  maxWidth: 720,
-  margin: '0 auto',
+  background: '#fff', border: '1px solid #e1e3e5', borderRadius: 14,
+  padding: 28, maxWidth: 760, margin: '0 auto 18px',
 };
+
+const btnDark: React.CSSProperties = {
+  display: 'inline-block', background: '#1a1a1a', color: '#fff',
+  padding: '11px 20px', borderRadius: 10, textDecoration: 'none', fontWeight: 600,
+};
+const btnGhost: React.CSSProperties = {
+  display: 'inline-block', border: '1px solid #c9cccf', color: '#1a1a1a',
+  padding: '11px 20px', borderRadius: 10, textDecoration: 'none', fontWeight: 600, marginLeft: 10,
+};
+
+function Feature({ children }: { children: React.ReactNode }) {
+  return (
+    <li style={{ padding: '7px 0', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <span style={{ color: '#1a7f37', fontWeight: 700 }}>✓</span>
+      <span>{children}</span>
+    </li>
+  );
+}
 
 export default function Home() {
   return (
-    <main style={{ padding: 24 }}>
+    <main style={{ padding: 28 }}>
       <PlanBanner />
+
       <div style={card}>
-        <h1 style={{ margin: '0 0 8px', fontSize: 22 }}>Support Assistant</h1>
-        <p style={{ color: '#616161', marginTop: 0 }}>
-          An AI widget that answers customer questions and looks up order status
-          on your storefront — so fewer &quot;where is my order?&quot; emails reach you.
+        <h1 style={{ margin: '0 0 6px', fontSize: 24 }}>Welcome 👋</h1>
+        <p style={{ color: '#5c5f62', marginTop: 0, fontSize: 15, lineHeight: 1.6 }}>
+          An AI assistant on your storefront that answers customer questions,
+          tracks orders, and recommends products — in any language, with WhatsApp
+          handoff. Fewer repetitive messages for you, faster help for customers.
         </p>
 
-        <ol style={{ lineHeight: 1.9, paddingLeft: 20 }}>
-          <li>
-            Add your common answers in{' '}
-            <Link href="/faqs" style={{ color: '#2c6ecb' }}>
-              Knowledge base
-            </Link>
-            .
-          </li>
-          <li>
-            Enable the <b>Support Assistant</b> app embed in your theme
-            (Online Store → Themes → Customize → App embeds).
-          </li>
-          <li>Done. The widget appears on your storefront.</li>
-        </ol>
+        <div style={{ margin: '18px 0' }}>
+          <b style={{ fontSize: 14 }}>Get set up in 3 steps</b>
+          <ol style={{ lineHeight: 1.9, paddingLeft: 20, marginTop: 8, color: '#42474c' }}>
+            <li>Add your common answers in the <Link href="/faqs" style={{ color: '#2c6ecb' }}>Knowledge base</Link>.</li>
+            <li>Enable the <b>Support Assistant</b> app embed (Online Store → Themes → Customize → App embeds).</li>
+            <li>Done — the chat widget appears on your storefront.</li>
+          </ol>
+        </div>
 
-        <Link
-          href="/faqs"
-          style={{
-            display: 'inline-block',
-            marginTop: 8,
-            background: '#1a1a1a',
-            color: '#fff',
-            padding: '10px 18px',
-            borderRadius: 8,
-            textDecoration: 'none',
-            fontWeight: 600,
-          }}
-        >
-          Manage knowledge base →
-        </Link>
+        <Link href="/faqs" style={btnDark}>Manage knowledge base →</Link>
+        <Link href="/analytics" style={btnGhost}>View analytics →</Link>
+      </div>
+
+      <div style={card}>
+        <h2 style={{ marginTop: 0, fontSize: 18 }}>Plans</h2>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 240, border: '1px solid #e1e3e5', borderRadius: 12, padding: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>Free</div>
+            <div style={{ fontSize: 22, fontWeight: 700, margin: '6px 0 12px' }}>$0</div>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: 14, color: '#42474c' }}>
+              <Feature>Auto-answer FAQs (up to 100/mo)</Feature>
+              <Feature>Order tracking</Feature>
+              <Feature>Up to 10 saved Q&amp;As</Feature>
+              <Feature>Product recommendations (5/mo)</Feature>
+              <Feature>All languages</Feature>
+            </ul>
+          </div>
+          <div style={{ flex: 1, minWidth: 240, border: '2px solid #1a1a1a', borderRadius: 12, padding: 20, position: 'relative' }}>
+            <span style={{ position: 'absolute', top: -11, right: 16, background: '#1a1a1a', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>RECOMMENDED</span>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>Pro</div>
+            <div style={{ fontSize: 22, fontWeight: 700, margin: '6px 0 12px' }}>$9.99<span style={{ fontSize: 13, fontWeight: 400, color: '#5c5f62' }}>/mo</span></div>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: 14, color: '#42474c' }}>
+              <Feature><b>Unlimited</b> answers &amp; Q&amp;As</Feature>
+              <Feature><b>Unlimited</b> product recommendations</Feature>
+              <Feature>WhatsApp handoff</Feature>
+              <Feature>Order tracking</Feature>
+              <Feature>All languages · remove branding</Feature>
+            </ul>
+          </div>
+        </div>
+        <p style={{ fontSize: 12.5, color: '#8a8d91', marginBottom: 0, marginTop: 14 }}>
+          Manage or change your plan from the banner above. Billing is handled securely by Shopify.
+        </p>
       </div>
     </main>
   );

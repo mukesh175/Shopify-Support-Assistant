@@ -2,25 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAppProxySignature } from '@/lib/auth/appProxy';
 import { getShopToken } from '@/lib/auth/session';
 import { lookupOrder } from '@/lib/shopify/orders';
-import { answerFromKnowledge } from '@/lib/ai/answer';
+import { answerFromKnowledge, extractKeywords, rankProducts } from '@/lib/ai/answer';
 import { getActivePlan } from '@/lib/shopify/billing';
+import { recommendProducts } from '@/lib/shopify/products';
 import { db, schema } from '@/lib/db';
 import { and, eq, gte, sql } from 'drizzle-orm';
 
-// Count how many queries this shop has logged in the current calendar month.
-async function monthlyQueryCount(shopDomain: string): Promise<number> {
+// Count queries of a given kind this calendar month.
+async function monthlyCount(shopDomain: string, kind?: string): Promise<number> {
   const start = new Date();
   start.setDate(1);
   start.setHours(0, 0, 0, 0);
+  const conds = [
+    eq(schema.queryLogs.shopDomain, shopDomain),
+    gte(schema.queryLogs.createdAt, start),
+  ];
+  if (kind) conds.push(eq(schema.queryLogs.kind, kind));
   const rows = await db
     .select({ c: sql<number>`count(*)` })
     .from(schema.queryLogs)
-    .where(
-      and(
-        eq(schema.queryLogs.shopDomain, shopDomain),
-        gte(schema.queryLogs.createdAt, start)
-      )
-    );
+    .where(and(...conds));
   return Number(rows[0]?.c ?? 0);
 }
 
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
     message?: string;
     orderName?: string;
     email?: string;
-    intent?: 'order' | 'faq';
+    intent?: 'order' | 'faq' | 'product';
   };
   try {
     body = await req.json();
@@ -84,6 +85,50 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ kind: 'order_status', text });
   }
 
+  // ---- Product recommendation intent ----
+  if (body.intent === 'product') {
+    const request = (body.message ?? '').trim();
+    if (!request) {
+      return NextResponse.json({ error: 'empty message' }, { status: 400 });
+    }
+    const token = await getShopToken(shopDomain);
+    if (!token) {
+      return NextResponse.json({ kind: 'error', text: 'App not connected.' });
+    }
+    const plan = await getActivePlan(shopDomain, token);
+
+    // 0 = feature disabled on this plan; N = capped; null = unlimited
+    if (plan.monthlyRecommendationLimit === 0) {
+      return NextResponse.json({
+        kind: 'recommend_locked',
+        text: 'Product recommendations are available on the Pro plan.',
+      });
+    }
+    if (plan.monthlyRecommendationLimit !== null) {
+      const used = await monthlyCount(shopDomain, 'recommend');
+      if (used >= plan.monthlyRecommendationLimit) {
+        return NextResponse.json({
+          kind: 'recommend_locked',
+          text: "This store's product assistant is busy right now. Please browse the store or ask us directly.",
+        });
+      }
+    }
+
+    const products = await recommendProducts(shopDomain, token, request, {
+      keywords: extractKeywords,
+      rank: rankProducts,
+    });
+
+    await logQuery(shopDomain, request, `${products.length} products`, 'recommend', products.length > 0);
+    return NextResponse.json({
+      kind: 'recommend',
+      text: products.length
+        ? 'Here are a few that might fit:'
+        : "I couldn't find a good match. Try different words, or browse the store.",
+      products,
+    });
+  }
+
   // ---- FAQ intent (default) ----
   const message = (body.message ?? '').trim();
   if (!message) {
@@ -95,7 +140,7 @@ export async function POST(req: NextRequest) {
   if (token) {
     const plan = await getActivePlan(shopDomain, token);
     if (plan.monthlyQueryLimit !== null) {
-      const used = await monthlyQueryCount(shopDomain);
+      const used = await monthlyCount(shopDomain);
       if (used >= plan.monthlyQueryLimit) {
         // Soft-fail: still helpful to the customer, but nudges the merchant.
         return NextResponse.json({

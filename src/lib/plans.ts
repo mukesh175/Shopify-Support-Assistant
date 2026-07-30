@@ -10,6 +10,7 @@ export type Plan = {
   shopifyPlanName: string;
   price: string;
   monthlyQueryLimit: number | null; // null = unlimited
+  monthlyRecommendationLimit: number | null; // null = unlimited, 0 = disabled
   maxFaqs: number | null;
   whatsappHandoff: boolean;
   removeBranding: boolean;
@@ -21,6 +22,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     shopifyPlanName: 'Free',
     price: '$0',
     monthlyQueryLimit: 100,
+    monthlyRecommendationLimit: 5,
     maxFaqs: 10,
     whatsappHandoff: false,
     removeBranding: false,
@@ -30,6 +32,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     shopifyPlanName: 'Pro',
     price: '$9.99/month',
     monthlyQueryLimit: null,
+    monthlyRecommendationLimit: null,
     maxFaqs: null,
     whatsappHandoff: true,
     removeBranding: true,

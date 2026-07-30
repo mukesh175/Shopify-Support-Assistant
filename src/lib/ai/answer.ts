@@ -18,7 +18,7 @@ If the knowledge base does not contain the answer, reply EXACTLY with:
 "__UNRESOLVED__"
 Never invent policies, prices, shipping times, or order details.`;
 
-async function callGemini(prompt: string): Promise<string | null> {
+async function callGemini(prompt: string, system: string = SYSTEM_PROMPT): Promise<string | null> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
   const model = 'gemini-2.5-flash';
@@ -28,7 +28,7 @@ async function callGemini(prompt: string): Promise<string | null> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.2, maxOutputTokens: 400 },
       }),
@@ -39,7 +39,7 @@ async function callGemini(prompt: string): Promise<string | null> {
   return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
 }
 
-async function callGroq(prompt: string): Promise<string | null> {
+async function callGroq(prompt: string, system: string = SYSTEM_PROMPT): Promise<string | null> {
   const key = process.env.GROQ_API_KEY;
   if (!key) return null;
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -53,7 +53,7 @@ async function callGroq(prompt: string): Promise<string | null> {
       temperature: 0.2,
       max_tokens: 400,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: system },
         { role: 'user', content: prompt },
       ],
     }),
@@ -63,10 +63,50 @@ async function callGroq(prompt: string): Promise<string | null> {
   return data?.choices?.[0]?.message?.content?.trim() ?? null;
 }
 
-const PROVIDERS: Array<{ name: string; fn: (p: string) => Promise<string | null> }> = [
+const PROVIDERS: Array<{ name: string; fn: (p: string, system?: string) => Promise<string | null> }> = [
   { name: 'gemini', fn: callGemini },
   { name: 'groq', fn: callGroq },
 ];
+
+// Low-level: run a raw prompt through the provider chain with a custom system
+// prompt. Used by both FAQ answering and product recommendations.
+async function runLLM(system: string, user: string): Promise<string | null> {
+  for (const p of PROVIDERS) {
+    try {
+      const out = await p.fn(user, system);
+      if (out) return out;
+    } catch {
+      /* next */
+    }
+  }
+  return null;
+}
+
+/** Turn a natural-language shopping request into 2-5 search keywords. */
+export async function extractKeywords(request: string): Promise<string> {
+  const out = await runLLM(
+    `Extract 2-5 product search keywords from the shopping request. Output ONLY the keywords separated by spaces, no punctuation, no explanation. Translate non-English requests to English keywords.`,
+    `Request: ${request}`
+  );
+  return (out ?? '').replace(/[\n"']/g, ' ').trim();
+}
+
+/** Rank candidate products by fit. Returns an array of indices, best first. */
+export async function rankProducts(
+  request: string,
+  products: { i: number; title: string; price: string }[]
+): Promise<number[]> {
+  const list = products.map((p) => `${p.i}: ${p.title} (${p.price})`).join('\n');
+  const out = await runLLM(
+    `You are a shopping assistant. Given a customer request and a numbered product list, pick the best matches. Output ONLY a comma-separated list of the matching numbers, best first, max 4. No other text. If none fit, output nothing.`,
+    `Customer request: ${request}\n\nProducts:\n${list}`
+  );
+  if (!out) return [];
+  return out
+    .split(',')
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => !Number.isNaN(n));
+}
 
 export async function answerFromKnowledge(
   question: string,
