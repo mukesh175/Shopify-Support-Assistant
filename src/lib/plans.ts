@@ -1,13 +1,12 @@
-// Plan definitions. These MUST match the plan names you configure in the
-// Partner Dashboard under Shopify App Pricing (App submission > Pricing).
-// The app reads the merchant's active subscription and gates features here.
+// Plan definitions. Plan NAMES here must EXACTLY match the plans you configure
+// in the Partner Dashboard under Shopify App Pricing. The app reads the
+// merchant's active subscription and gates features accordingly.
 
-export type PlanKey = 'free' | 'pro';
+export type PlanKey = 'free' | 'starter' | 'pro';
 
 export type Plan = {
   key: PlanKey;
-  // Must EXACTLY match the plan "name" set in the Partner Dashboard.
-  shopifyPlanName: string;
+  shopifyPlanName: string; // must match Partner Dashboard plan name
   price: string;
   monthlyQueryLimit: number | null; // null = unlimited
   monthlyRecommendationLimit: number | null; // null = unlimited, 0 = disabled
@@ -27,6 +26,16 @@ export const PLANS: Record<PlanKey, Plan> = {
     whatsappHandoff: false,
     removeBranding: false,
   },
+  starter: {
+    key: 'starter',
+    shopifyPlanName: 'Starter',
+    price: '$5/month',
+    monthlyQueryLimit: 500,
+    monthlyRecommendationLimit: 100,
+    maxFaqs: 50,
+    whatsappHandoff: true,
+    removeBranding: false,
+  },
   pro: {
     key: 'pro',
     shopifyPlanName: 'Pro',
@@ -39,9 +48,11 @@ export const PLANS: Record<PlanKey, Plan> = {
   },
 };
 
-// Map a Shopify active-subscription name to our plan. Anything unrecognized or
-// absent = free.
+// Map a Shopify active-subscription name to our plan. Order matters: check the
+// most specific first. Anything unrecognized/absent = free.
 export function planFromSubscriptionName(name?: string | null): Plan {
-  if (name && name.toLowerCase().includes('pro')) return PLANS.pro;
+  const n = (name ?? '').toLowerCase();
+  if (n.includes('pro')) return PLANS.pro;
+  if (n.includes('starter')) return PLANS.starter;
   return PLANS.free;
 }

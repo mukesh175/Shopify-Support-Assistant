@@ -28,7 +28,7 @@ export default function PlanBanner() {
 
   if (!info) return null;
 
-  const isFree = info.plan === 'free';
+  const isFree = info.plan !== 'pro';
   const usageText =
     info.monthlyQueryLimit === null
       ? `${info.used} answers this month · unlimited`
@@ -71,7 +71,7 @@ export default function PlanBanner() {
             fontSize: 14,
           }}
         >
-          Upgrade to Pro →
+          Upgrade →
         </a>
       )}
     </div>
