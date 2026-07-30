@@ -10,6 +10,7 @@
   var ICON = root.dataset.icon || 'bubble';
   var POSITION = root.dataset.position === 'left' ? 'left' : 'right';
   var WHATSAPP = (root.dataset.whatsapp || '').replace(/[^0-9]/g, '');
+  var SUGGESTIONS = [];
 
   var ICONS = {
     bubble: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
@@ -66,7 +67,10 @@
     var configUrl = PROXY.replace(/\/query$/, '/config');
     fetch(configUrl, { method: 'GET' })
       .then(function (r) { return r.json(); })
-      .then(function (cfg) { if (cfg && cfg.branding === false) brandFoot.style.display = 'none'; })
+      .then(function (cfg) {
+        if (cfg && cfg.branding === false) brandFoot.style.display = 'none';
+        if (cfg && cfg.suggestions && cfg.suggestions.length) SUGGESTIONS = cfg.suggestions;
+      })
       .catch(function () {});
   })();
 
@@ -80,7 +84,28 @@
   function open() {
     panel.classList.add('sa-open');
     if (pop) { pop.remove(); pop = null; }
-    if (!greeted) { bot(GREETING); greeted = true; }
+    if (!greeted) {
+      bot(GREETING);
+      showSuggestions();
+      greeted = true;
+    }
+  }
+
+  function showSuggestions() {
+    if (!SUGGESTIONS.length) return;
+    var wrap = el('div', 'sa-suggests');
+    SUGGESTIONS.slice(0, 4).forEach(function (q) {
+      var chip = el('button', 'sa-suggest', q);
+      chip.addEventListener('click', function () {
+        wrap.remove();
+        mode = 'faq';
+        user(q);
+        post({ intent: 'faq', message: q });
+      });
+      wrap.appendChild(chip);
+    });
+    body.appendChild(wrap);
+    body.scrollTop = body.scrollHeight;
   }
   function close() { panel.classList.remove('sa-open'); }
 
@@ -123,6 +148,9 @@
       .then(function (data) {
         typing.remove();
         bot(data.text || 'Sorry, something went wrong.');
+        if (data.kind === 'order_status' && data.timeline && data.timeline.length) {
+          renderTimeline(data.timeline, data.trackingUrl);
+        }
         if (data.kind === 'recommend' && data.products && data.products.length) renderProducts(data.products);
         if (WHATSAPP && (data.kind === 'unresolved' || data.kind === 'limit' || data.kind === 'recommend_locked')) offerWhatsApp(payload.message || 'my question');
       })
@@ -130,6 +158,34 @@
         typing.remove(); bot('Sorry, I could not reach support right now.');
         if (WHATSAPP) offerWhatsApp(payload.message || 'my question');
       });
+  }
+
+  function renderTimeline(steps, trackingUrl) {
+    var card = el('div', 'sa-timeline');
+    var row = el('div', 'sa-tl-row');
+    steps.forEach(function (s, i) {
+      var col = el('div', 'sa-tl-step' + (s.done ? ' sa-tl-done' : '') + (s.current ? ' sa-tl-current' : ''));
+      var dot = el('div', 'sa-tl-dot', s.done ? '✓' : '');
+      var lbl = el('div', 'sa-tl-label', s.label);
+      var dt = el('div', 'sa-tl-date', s.date ? fmtDate(s.date) : '');
+      if (i > 0) col.appendChild(el('div', 'sa-tl-line' + (s.done ? ' sa-tl-line-done' : '')));
+      col.appendChild(dot); col.appendChild(lbl); col.appendChild(dt);
+      row.appendChild(col);
+    });
+    card.appendChild(row);
+    if (trackingUrl) {
+      var link = el('a', 'sa-tl-track', 'Track package →');
+      link.href = trackingUrl; link.target = '_blank'; link.rel = 'noopener';
+      card.appendChild(link);
+    }
+    body.appendChild(card); body.scrollTop = body.scrollHeight;
+  }
+
+  function fmtDate(iso) {
+    try {
+      var d = new Date(iso);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    } catch (e) { return ''; }
   }
 
   function renderProducts(products) {

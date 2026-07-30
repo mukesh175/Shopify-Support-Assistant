@@ -82,7 +82,12 @@ export async function POST(req: NextRequest) {
     }
 
     await logQuery(shopDomain, body.orderName + ' / ' + body.email, text, 'order_status', order.found);
-    return NextResponse.json({ kind: 'order_status', text });
+    return NextResponse.json({
+      kind: 'order_status',
+      text,
+      timeline: order.found ? order.timeline : undefined,
+      trackingUrl: order.trackingUrls?.[0] ?? undefined,
+    });
   }
 
   // ---- Product recommendation intent ----

@@ -122,3 +122,41 @@
   text-align: center; font-size: 11px; color: #9a9da2;
   padding: 6px 0 8px; background: #fff; border-top: 1px solid #f2f2f4;
 }
+
+/* FAQ suggestion chips */
+.sa-suggests { display: flex; flex-direction: column; gap: 7px; align-self: stretch; margin-top: 2px; }
+.sa-suggest {
+  text-align: left; background: #fff; border: 1px solid #dcdee3;
+  border-radius: 12px; padding: 9px 13px; font-size: 13.5px; color: #2c6ecb;
+  cursor: pointer; transition: background .12s ease, border-color .12s ease;
+}
+.sa-suggest:hover { background: #f4f7fd; border-color: #b9d0f5; }
+
+/* Order timeline stepper */
+.sa-timeline {
+  align-self: stretch; background: #fff; border: 1px solid #ececf0;
+  border-radius: 14px; padding: 16px 12px 12px;
+}
+.sa-tl-row { display: flex; justify-content: space-between; }
+.sa-tl-step {
+  position: relative; flex: 1; display: flex; flex-direction: column;
+  align-items: center; text-align: center;
+}
+.sa-tl-dot {
+  width: 26px; height: 26px; border-radius: 50%; background: #e7e8eb;
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; z-index: 1;
+}
+.sa-tl-done .sa-tl-dot { background: #1a7f37; }
+.sa-tl-current .sa-tl-dot { box-shadow: 0 0 0 4px rgba(26,127,55,.15); }
+.sa-tl-line {
+  position: absolute; top: 13px; right: 50%; width: 100%; height: 3px;
+  background: #e7e8eb; z-index: 0;
+}
+.sa-tl-line-done { background: #1a7f37; }
+.sa-tl-label { font-size: 11px; font-weight: 600; margin-top: 6px; color: #1a1a1a; line-height: 1.2; }
+.sa-tl-date { font-size: 10px; color: #8a8d91; margin-top: 2px; }
+.sa-tl-track {
+  display: block; text-align: center; margin-top: 12px; font-size: 13px;
+  font-weight: 600; color: #2c6ecb; text-decoration: none;
+}

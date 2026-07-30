@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import AppNav from './AppNav';
 
 export const metadata: Metadata = {
   title: 'Zappy',
@@ -23,45 +23,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           color: '#1a1a1a',
         }}
       >
-        <nav
-          style={{
-            background: '#fff',
-            borderBottom: '1px solid #e1e3e5',
-            padding: '0 20px',
-            display: 'flex',
-            gap: 4,
-            alignItems: 'center',
-            height: 52,
-            position: 'sticky',
-            top: 0,
-            zIndex: 10,
-          }}
-        >
-          <span style={{ fontWeight: 700, marginRight: 16 }}>⚡ Zappy</span>
-          <NavLink href="/" label="Home" />
-          <NavLink href="/faqs" label="Knowledge base" />
-          <NavLink href="/analytics" label="Analytics" />
-        </nav>
+        <AppNav />
         {children}
       </body>
     </html>
-  );
-}
-
-function NavLink({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      href={href}
-      style={{
-        padding: '8px 12px',
-        borderRadius: 8,
-        textDecoration: 'none',
-        color: '#42474c',
-        fontSize: 14,
-        fontWeight: 500,
-      }}
-    >
-      {label}
-    </Link>
   );
 }
