@@ -29,9 +29,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       installed: !!shopRow,
       storedScope: shopRow?.scope ?? null,
+      hasRefreshToken: !!shopRow?.refreshTokenEnc,
+      tokenExpiresAt: shopRow?.tokenExpiresAt ?? null,
       error: 'No usable access token (app may need reinstall/re-auth).',
     });
   }
+
+  // Stored token metadata — tells us if the last exchange produced an EXPIRING
+  // token (has a refresh token + an expiry) or a legacy non-expiring one.
+  const storedMeta = {
+    hasRefreshToken: !!shopRow?.refreshTokenEnc,
+    tokenExpiresAt: shopRow?.tokenExpiresAt ?? null,
+    looksExpiring: !!shopRow?.refreshTokenEnc && !!shopRow?.tokenExpiresAt,
+  };
 
   // 1) Ask Shopify what scopes THIS token actually has
   let grantedScopes: any = null;
@@ -82,6 +92,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     shopDomain,
     installedScope: shopRow?.scope ?? null,
+    storedTokenMeta: storedMeta,
     grantedScopes,
     allOrders,
     byEmail,
