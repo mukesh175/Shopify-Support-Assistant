@@ -77,13 +77,14 @@ export default function AnalyticsPage() {
             {data.trend.length === 0 ? (
               <p style={{ color: '#616161' }}>No activity yet.</p>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 120, justifyContent: 'flex-start' }}>
                 {data.trend.map((d) => (
-                  <div key={d.day} style={{ flex: 1, textAlign: 'center' }} title={`${d.day}: ${d.count}`}>
+                  <div key={d.day} style={{ width: 34, textAlign: 'center', flexShrink: 0 }} title={`${d.day}: ${d.count}`}>
+                    <div style={{ fontSize: 11, color: '#42474c', marginBottom: 4 }}>{d.count}</div>
                     <div
                       style={{
-                        background: '#1a1a1a', borderRadius: 4,
-                        height: `${(d.count / maxTrend) * 100}px`, minHeight: 2,
+                        background: '#1a1a1a', borderRadius: 4, width: '100%',
+                        height: `${Math.max(6, (d.count / maxTrend) * 90)}px`,
                       }}
                     />
                     <div style={{ fontSize: 10, color: '#8a8a8a', marginTop: 4 }}>

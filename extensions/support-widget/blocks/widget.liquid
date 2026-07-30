@@ -1,52 +1,55 @@
 {% comment %}
-  App embed block. Merchant enables this under Theme Customize > App embeds.
-  It renders a floating support button on every storefront page.
+  App embed block. Merchant enables this under Theme Customize > App embeds
+  and customizes color, icon, position, and greeting from there.
 {% endcomment %}
 
 <div
   id="support-assistant-root"
-  data-proxy-url="{{ block.settings.proxy_subpath }}"
+  data-proxy-url="/apps/support/query"
   data-accent="{{ block.settings.accent_color }}"
+  data-text-color="{{ block.settings.text_color }}"
   data-greeting="{{ block.settings.greeting | escape }}"
+  data-popup="{{ block.settings.popup_text | escape }}"
+  data-icon="{{ block.settings.launcher_icon }}"
+  data-position="{{ block.settings.position }}"
   data-whatsapp="{{ block.settings.whatsapp_number }}"
 ></div>
 
-<link
-  rel="stylesheet"
-  href="{{ 'widget.css' | asset_url }}"
->
-<script
-  src="{{ 'widget.js' | asset_url }}"
-  defer
-></script>
+<link rel="stylesheet" href="{{ 'widget.css' | asset_url }}">
+<script src="{{ 'widget.js' | asset_url }}" defer></script>
 
 {% schema %}
 {
   "name": "Support Assistant",
   "target": "body",
   "settings": [
+    { "type": "header", "content": "Appearance" },
+    { "type": "color", "id": "accent_color", "label": "Main color (button & header)", "default": "#1a1a1a" },
+    { "type": "color", "id": "text_color", "label": "Button/header text color", "default": "#ffffff" },
     {
-      "type": "text",
-      "id": "proxy_subpath",
-      "label": "App proxy path",
-      "default": "/apps/support/query",
-      "info": "Must match the App Proxy subpath configured in your app settings."
+      "type": "select", "id": "launcher_icon", "label": "Chat button icon",
+      "options": [
+        { "value": "bubble", "label": "Chat bubble" },
+        { "value": "headset", "label": "Headset" },
+        { "value": "robot", "label": "Robot" },
+        { "value": "question", "label": "Question mark" }
+      ],
+      "default": "bubble"
     },
     {
-      "type": "color",
-      "id": "accent_color",
-      "label": "Accent color",
-      "default": "#1a1a1a"
+      "type": "select", "id": "position", "label": "Position on screen",
+      "options": [
+        { "value": "right", "label": "Bottom right" },
+        { "value": "left", "label": "Bottom left" }
+      ],
+      "default": "right"
     },
+    { "type": "header", "content": "Messages" },
+    { "type": "text", "id": "greeting", "label": "Greeting (inside chat)", "default": "Hi! Ask about your order or our policies." },
+    { "type": "text", "id": "popup_text", "label": "Popup bubble text (leave blank to hide)", "default": "Hello 👋 How can I help?" },
+    { "type": "header", "content": "WhatsApp" },
     {
-      "type": "text",
-      "id": "greeting",
-      "label": "Greeting message",
-      "default": "Hi! Ask about your order or our policies."
-    },
-    {
-      "type": "text",
-      "id": "whatsapp_number",
+      "type": "text", "id": "whatsapp_number",
       "label": "WhatsApp number (with country code, digits only)",
       "info": "e.g. 919876543210. Leave blank to hide the WhatsApp button."
     }

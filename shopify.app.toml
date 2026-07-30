@@ -9,7 +9,7 @@ application_url = "https://shopify-support-assistant.vercel.app"
 embedded = true
 
 [access_scopes]
-scopes = "read_orders,read_customers"
+scopes = "read_orders,read_customers,read_products"
 # Managed installation: Shopify installs the app and manages scope grants.
 use_legacy_install_flow = false
 
@@ -41,3 +41,5 @@ embedded = false
 
 [build]
 automatically_update_urls_on_dev = true
+
+
