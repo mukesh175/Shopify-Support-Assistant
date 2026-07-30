@@ -17,6 +17,7 @@ export const shops = pgTable('shops', {
   id: serial('id').primaryKey(),
   shopDomain: text('shop_domain').notNull().unique(), // e.g. my-store.myshopify.com
   accessTokenEnc: text('access_token_enc').notNull(),
+  refreshTokenEnc: text('refresh_token_enc'),
   scope: text('scope'),
   // expiring offline tokens (required for public apps from 2026-04-01)
   tokenExpiresAt: timestamp('token_expires_at'),
