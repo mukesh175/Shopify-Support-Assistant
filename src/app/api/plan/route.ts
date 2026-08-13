@@ -7,7 +7,7 @@ import { and, eq, gte, sql } from 'drizzle-orm';
 export const runtime = 'nodejs';
 
 // App handle from shopify.app.toml — used to build the managed pricing URL.
-const APP_HANDLE = process.env.APP_HANDLE ?? 'support-assistant';
+const APP_HANDLE = process.env.APP_HANDLE ?? 'smukesh-support-app';
 
 export async function GET(req: NextRequest) {
   try {
