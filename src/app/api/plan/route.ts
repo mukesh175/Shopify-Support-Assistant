@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken, ensureOfflineToken, getShopToken } from '@/lib/auth/session';
 import { getActivePlan, pricingPageUrl } from '@/lib/shopify/billing';
+import { APP_HANDLE } from '@/lib/shopify/app-handle';
 import { db, schema } from '@/lib/db';
 import { and, eq, gte, sql } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
-
-// App handle from shopify.app.toml — used to build the managed pricing URL.
-const APP_HANDLE = process.env.APP_HANDLE ?? 'support-assistant';
 
 export async function GET(req: NextRequest) {
   try {
