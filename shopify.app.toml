@@ -4,7 +4,7 @@
 
 client_id = "ec0d635c1ad9d7b09c968c797dd03d85"
 name = "Zappy"
-handle = "smukesh-support-app"
+handle = "zappy-support-app"
 application_url = "https://zappy-assistant.vercel.app"
 embedded = true
 
