@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySessionToken, ensureOfflineToken, getShopToken } from '@/lib/auth/session';
+import { verifySessionToken, ensureOfflineToken, getShopToken, errorResponse } from '@/lib/auth/session';
 import { getActivePlan } from '@/lib/shopify/billing';
 import { db, schema } from '@/lib/db';
 import { and, eq, desc, sql } from 'drizzle-orm';
@@ -24,7 +24,8 @@ export async function GET(req: NextRequest) {
       .orderBy(desc(schema.faqs.createdAt));
     return NextResponse.json({ faqs: rows });
   } catch (e) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    const r = errorResponse(e);
+    return NextResponse.json(r.body, { status: r.status });
   }
 }
 
@@ -58,8 +59,9 @@ export async function POST(req: NextRequest) {
       .values({ shopDomain, question: question.trim(), answer: answer.trim() })
       .returning();
     return NextResponse.json({ faq: row });
-  } catch {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  } catch (e) {
+    const r = errorResponse(e);
+    return NextResponse.json(r.body, { status: r.status });
   }
 }
 
@@ -72,7 +74,8 @@ export async function DELETE(req: NextRequest) {
       .delete(schema.faqs)
       .where(and(eq(schema.faqs.id, id), eq(schema.faqs.shopDomain, shopDomain)));
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  } catch (e) {
+    const r = errorResponse(e);
+    return NextResponse.json(r.body, { status: r.status });
   }
 }

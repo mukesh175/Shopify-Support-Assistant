@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySessionToken, ensureOfflineToken } from '@/lib/auth/session';
+import { verifySessionToken, ensureOfflineToken, errorResponse } from '@/lib/auth/session';
 import { db } from '@/lib/db';
 import { sql } from 'drizzle-orm';
 
@@ -81,7 +81,8 @@ export async function GET(req: NextRequest) {
       trend,
       topUnanswered,
     });
-  } catch {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  } catch (e) {
+    const r = errorResponse(e);
+    return NextResponse.json(r.body, { status: r.status });
   }
 }

@@ -10,13 +10,35 @@ const REFRESH_BUFFER_MS = 2 * 60 * 1000;
 /**
  * Verify the App Bridge session token (JWT) from the embedded admin frontend.
  */
+/**
+ * Thrown only when the caller is genuinely not authenticated. Routes use this
+ * to answer 401 for auth failures while letting real faults (database, Shopify
+ * API) surface as 500 — a DB error reported as "unauthorized" is invisible.
+ */
+export class AuthError extends Error {}
+
 export async function verifySessionToken(request: Request) {
   const header = request.headers.get('authorization') ?? '';
   const token = header.replace(/^Bearer\s+/i, '');
-  if (!token) throw new Error('Missing session token');
-  const payload = await shopify.session.decodeSessionToken(token);
+  if (!token) throw new AuthError('Missing session token');
+  let payload;
+  try {
+    payload = await shopify.session.decodeSessionToken(token);
+  } catch (e: any) {
+    throw new AuthError(e?.message ?? 'Invalid session token');
+  }
   const shopDomain = new URL(payload.dest).host;
   return { payload, token, shopDomain };
+}
+
+/** Map a thrown error to a JSON response: 401 only for real auth failures. */
+export function errorResponse(e: unknown) {
+  if (e instanceof AuthError) {
+    return { body: { error: 'unauthorized' }, status: 401 as const };
+  }
+  const message = e instanceof Error ? e.message : 'Unexpected error';
+  console.error('[api]', e);
+  return { body: { error: message }, status: 500 as const };
 }
 
 type TokenResponse = {

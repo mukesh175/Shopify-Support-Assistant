@@ -7,4 +7,4 @@
  * deployment environment silently breaks the upgrade link, and the handle
  * changes only when the app itself is renamed in shopify.app.toml.
  */
-export const APP_HANDLE = 'smukesh-support-app';
+export const APP_HANDLE = 'zappy-support-app';

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySessionToken, ensureOfflineToken, getShopToken } from '@/lib/auth/session';
+import { verifySessionToken, ensureOfflineToken, getShopToken, errorResponse } from '@/lib/auth/session';
 import { getActivePlan, pricingPageUrl } from '@/lib/shopify/billing';
 import { APP_HANDLE } from '@/lib/shopify/app-handle';
 import { db, schema } from '@/lib/db';
@@ -40,7 +40,8 @@ export async function GET(req: NextRequest) {
       used,
       upgradeUrl: pricingPageUrl(shopDomain, APP_HANDLE),
     });
-  } catch {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  } catch (e) {
+    const r = errorResponse(e);
+    return NextResponse.json(r.body, { status: r.status });
   }
 }

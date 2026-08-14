@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySessionToken, ensureOfflineToken, getShopToken } from '@/lib/auth/session';
+import { verifySessionToken, ensureOfflineToken, getShopToken, errorResponse } from '@/lib/auth/session';
 import { getActivePlan } from '@/lib/shopify/billing';
 import { db, schema } from '@/lib/db';
 import { eq } from 'drizzle-orm';
@@ -33,8 +33,9 @@ export async function GET(req: NextRequest) {
       whatsappNumber: row?.whatsappNumber ?? '',
       whatsappHandoff,
     });
-  } catch {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  } catch (e) {
+    const r = errorResponse(e);
+    return NextResponse.json(r.body, { status: r.status });
   }
 }
 
@@ -69,7 +70,8 @@ export async function PUT(req: NextRequest) {
       .where(eq(schema.shops.shopDomain, shopDomain));
 
     return NextResponse.json({ whatsappNumber: digits });
-  } catch {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  } catch (e) {
+    const r = errorResponse(e);
+    return NextResponse.json(r.body, { status: r.status });
   }
 }
