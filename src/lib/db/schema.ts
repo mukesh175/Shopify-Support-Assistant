@@ -27,6 +27,10 @@ export const shops = pgTable('shops', {
   widgetEnabled: boolean('widget_enabled').default(true).notNull(),
   brandName: text('brand_name'),
   greeting: text('greeting').default("Hi! Ask me about your order or our policies."),
+  // WhatsApp handoff number, digits only (e.g. 919876543210). Stored here
+  // rather than in theme settings so it is never rendered into the storefront
+  // HTML of shops whose plan does not include handoff.
+  whatsappNumber: text('whatsapp_number'),
 });
 
 /**

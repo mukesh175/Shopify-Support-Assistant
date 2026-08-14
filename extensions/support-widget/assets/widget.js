@@ -9,13 +9,13 @@
   var POPUP = root.dataset.popup || '';
   var ICON = root.dataset.icon || 'bubble';
   var POSITION = root.dataset.position === 'left' ? 'left' : 'right';
-  var WHATSAPP = (root.dataset.whatsapp || '').replace(/[^0-9]/g, '');
   var SUGGESTIONS = [];
-  // WhatsApp handoff is a paid feature. The number comes from theme settings,
-  // but whether it may be used is decided by the shop's plan (see /config).
-  // Starts false so a failed/slow config call never leaks the feature.
-  var WA_ENABLED = false;
-  function waReady() { return WA_ENABLED && !!WHATSAPP; }
+  // WhatsApp handoff is a paid feature. The number is served by /config only
+  // when the shop's plan includes handoff, so it is never present in the page
+  // for shops without it. Empty until config answers, so a failed or slow call
+  // cannot leak the feature.
+  var WHATSAPP = '';
+  function waReady() { return !!WHATSAPP; }
 
   var ICONS = {
     bubble: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
@@ -51,7 +51,7 @@
       '<button data-q="faq">💬 Ask a question</button>' +
       '<button data-q="product">🛍️ Find a product</button>' +
       '<button data-q="order">📦 Track my order</button>' +
-      (WHATSAPP ? '<button data-q="wa" class="sa-wa-quick" style="display:none">WhatsApp us</button>' : '') +
+      '<button data-q="wa" class="sa-wa-quick" style="display:none">WhatsApp us</button>' +
     '</div>' +
     '<form class="sa-order-form">' +
       '<input name="orderName" placeholder="Order number e.g. #1001" required>' +
@@ -78,10 +78,10 @@
       .then(function (cfg) {
         if (cfg && cfg.branding === false) brandFoot.style.display = 'none';
         if (cfg && cfg.suggestions && cfg.suggestions.length) SUGGESTIONS = cfg.suggestions;
-        if (cfg && cfg.whatsapp === true) {
-          WA_ENABLED = true;
+        if (cfg && typeof cfg.whatsapp === 'string' && cfg.whatsapp) {
+          WHATSAPP = cfg.whatsapp.replace(/[^0-9]/g, '');
           var waQuick = panel.querySelector('.sa-wa-quick');
-          if (waQuick) waQuick.style.display = '';
+          if (waQuick && WHATSAPP) waQuick.style.display = '';
         }
       })
       .catch(function () {});

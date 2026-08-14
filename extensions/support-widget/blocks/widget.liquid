@@ -12,7 +12,6 @@
   data-popup="{{ block.settings.popup_text | escape }}"
   data-icon="{{ block.settings.launcher_icon }}"
   data-position="{{ block.settings.position }}"
-  data-whatsapp="{{ block.settings.whatsapp_number }}"
 ></div>
 
 <link rel="stylesheet" href="{{ 'widget.css' | asset_url }}">
@@ -49,9 +48,8 @@
     { "type": "text", "id": "popup_text", "label": "Popup bubble text (leave blank to hide)", "default": "Hello 👋 How can I help?" },
     { "type": "header", "content": "WhatsApp" },
     {
-      "type": "text", "id": "whatsapp_number",
-      "label": "WhatsApp number (with country code, digits only)",
-      "info": "e.g. 919876543210. Leave blank to hide the WhatsApp button."
+      "type": "paragraph",
+      "content": "WhatsApp handoff is set up in the Zappy app under Settings. It is available on the Starter and Pro plans."
     }
   ]
 }

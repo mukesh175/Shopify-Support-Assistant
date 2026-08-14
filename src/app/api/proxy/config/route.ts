@@ -13,7 +13,9 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   // Paid features fail closed: if we cannot confirm the plan, keep them off.
-  const fallback = { branding: true, whatsapp: false, suggestions: [] as string[] };
+  // `whatsapp` carries the number itself, so a shop without handoff never
+  // receives it at all — it cannot be recovered from the page source.
+  const fallback = { branding: true, whatsapp: null as string | null, suggestions: [] as string[] };
   if (!verifyAppProxySignature(url)) return NextResponse.json(fallback);
 
   const shopDomain = url.searchParams.get('shop');
@@ -31,11 +33,18 @@ export async function GET(req: NextRequest) {
 
     const token = await getShopToken(shopDomain);
     let branding = true;
-    let whatsapp = false;
+    let whatsapp: string | null = null;
     if (token) {
       const plan = await getActivePlan(shopDomain, token);
       branding = !plan.removeBranding;
-      whatsapp = plan.whatsappHandoff;
+      if (plan.whatsappHandoff) {
+        const [shop] = await db
+          .select({ whatsappNumber: schema.shops.whatsappNumber })
+          .from(schema.shops)
+          .where(eq(schema.shops.shopDomain, shopDomain))
+          .limit(1);
+        whatsapp = shop?.whatsappNumber || null;
+      }
     }
     return NextResponse.json({ branding, whatsapp, suggestions });
   } catch {
