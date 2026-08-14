@@ -8,10 +8,12 @@ import { and, eq, desc } from 'drizzle-orm';
 export const runtime = 'nodejs';
 
 // The storefront widget calls this once on load (via App Proxy) to know how to
-// render: whether to show branding, and which suggested FAQ questions to offer.
+// render: whether to show branding, whether WhatsApp handoff is unlocked on the
+// shop's plan, and which suggested FAQ questions to offer.
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
-  const fallback = { branding: true, suggestions: [] as string[] };
+  // Paid features fail closed: if we cannot confirm the plan, keep them off.
+  const fallback = { branding: true, whatsapp: false, suggestions: [] as string[] };
   if (!verifyAppProxySignature(url)) return NextResponse.json(fallback);
 
   const shopDomain = url.searchParams.get('shop');
@@ -29,11 +31,13 @@ export async function GET(req: NextRequest) {
 
     const token = await getShopToken(shopDomain);
     let branding = true;
+    let whatsapp = false;
     if (token) {
       const plan = await getActivePlan(shopDomain, token);
       branding = !plan.removeBranding;
+      whatsapp = plan.whatsappHandoff;
     }
-    return NextResponse.json({ branding, suggestions });
+    return NextResponse.json({ branding, whatsapp, suggestions });
   } catch {
     return NextResponse.json(fallback);
   }

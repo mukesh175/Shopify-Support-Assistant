@@ -11,6 +11,11 @@
   var POSITION = root.dataset.position === 'left' ? 'left' : 'right';
   var WHATSAPP = (root.dataset.whatsapp || '').replace(/[^0-9]/g, '');
   var SUGGESTIONS = [];
+  // WhatsApp handoff is a paid feature. The number comes from theme settings,
+  // but whether it may be used is decided by the shop's plan (see /config).
+  // Starts false so a failed/slow config call never leaks the feature.
+  var WA_ENABLED = false;
+  function waReady() { return WA_ENABLED && !!WHATSAPP; }
 
   var ICONS = {
     bubble: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
@@ -46,7 +51,7 @@
       '<button data-q="faq">💬 Ask a question</button>' +
       '<button data-q="product">🛍️ Find a product</button>' +
       '<button data-q="order">📦 Track my order</button>' +
-      (WHATSAPP ? '<button data-q="wa" class="sa-wa-quick">WhatsApp us</button>' : '') +
+      (WHATSAPP ? '<button data-q="wa" class="sa-wa-quick" style="display:none">WhatsApp us</button>' : '') +
     '</div>' +
     '<form class="sa-order-form">' +
       '<input name="orderName" placeholder="Order number e.g. #1001" required>' +
@@ -73,6 +78,11 @@
       .then(function (cfg) {
         if (cfg && cfg.branding === false) brandFoot.style.display = 'none';
         if (cfg && cfg.suggestions && cfg.suggestions.length) SUGGESTIONS = cfg.suggestions;
+        if (cfg && cfg.whatsapp === true) {
+          WA_ENABLED = true;
+          var waQuick = panel.querySelector('.sa-wa-quick');
+          if (waQuick) waQuick.style.display = '';
+        }
       })
       .catch(function () {});
   })();
@@ -123,7 +133,7 @@
     b.addEventListener('click', function () {
       var q = b.dataset.q;
       if (q === 'order') { showOrderChoice(); }
-      else if (q === 'wa') { openWhatsApp('Hi, I need help.'); }
+      else if (q === 'wa') { if (waReady()) openWhatsApp('Hi, I need help.'); }
       else if (q === 'product') { mode = 'product'; orderForm.classList.remove('sa-show'); textInput.placeholder = 'What are you looking for?'; bot('What are you looking for? e.g. "black snowboard" or "gift under $500".'); textInput.focus(); }
       else { mode = 'faq'; orderForm.classList.remove('sa-show'); textInput.placeholder = 'Type your question…'; textInput.focus(); }
     });
@@ -168,11 +178,11 @@
         }
         if (data.kind === 'order_list' && data.orders && data.orders.length) renderOrderList(data.orders);
         if (data.kind === 'recommend' && data.products && data.products.length) renderProducts(data.products);
-        if (WHATSAPP && (data.kind === 'unresolved' || data.kind === 'limit' || data.kind === 'recommend_locked')) offerWhatsApp(payload.message || 'my question');
+        if (waReady() && (data.kind === 'unresolved' || data.kind === 'limit' || data.kind === 'recommend_locked')) offerWhatsApp(payload.message || 'my question');
       })
       .catch(function () {
         typing.remove(); bot('Sorry, I could not reach support right now.');
-        if (WHATSAPP) offerWhatsApp(payload.message || 'my question');
+        if (waReady()) offerWhatsApp(payload.message || 'my question');
       });
   }
 

@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'question and answer required' }, { status: 400 });
     }
 
-    // Free tier caps the number of FAQs — a natural upgrade trigger.
+    // Free and Starter cap the number of FAQs — a natural upgrade trigger.
     const token = await getShopToken(shopDomain);
     if (token) {
       const plan = await getActivePlan(shopDomain, token);
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
           .where(eq(schema.faqs.shopDomain, shopDomain));
         if (Number(c) >= plan.maxFaqs) {
           return NextResponse.json(
-            { error: `Free plan is limited to ${plan.maxFaqs} Q&As. Upgrade to Pro for unlimited.` },
+            { error: `The ${plan.shopifyPlanName} plan is limited to ${plan.maxFaqs} Q&As. Upgrade for more.` },
             { status: 402 }
           );
         }
