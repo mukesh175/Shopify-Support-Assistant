@@ -74,9 +74,9 @@ export default function PlansSection() {
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: 13.5, color: '#42474c' }}>
             <Feature>100 answers/mo</Feature>
             <Feature>Order tracking</Feature>
-            <Feature>10 saved Q&amp;As</Feature>
+            <Feature>5 saved Q&amp;As</Feature>
             <Feature>5 recommendations/mo</Feature>
-            <Feature>All languages</Feature>
+            <Feature>English only</Feature>
           </ul>
           <div style={{ marginTop: 'auto' }}>
             <PlanCta planId="free" info={info} />

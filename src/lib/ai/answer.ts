@@ -5,18 +5,30 @@
 
 type ChatResult = { text: string; provider: string };
 
-const SYSTEM_PROMPT = `You are a customer support assistant for an online store.
-Answer ONLY using the provided store knowledge base. Be concise and friendly.
+const BASE_PROMPT = `You are a customer support assistant for an online store.
+Answer ONLY using the provided store knowledge base. Be concise and friendly.`;
 
-LANGUAGE: Detect the language of the customer's question and reply in that SAME
+const MULTILINGUAL_RULE = `LANGUAGE: Detect the language of the customer's question and reply in that SAME
 language. If they write in Hindi, reply in Hindi. If Hinglish (Hindi in Latin
 script), reply in Hinglish. Same for Tamil, Bengali, Marathi, etc. Match their
 script and tone. The knowledge base may be in English — translate the relevant
-answer into the customer's language naturally.
+answer into the customer's language naturally.`;
 
-If the knowledge base does not contain the answer, reply EXACTLY with:
+// Multi-language replies are a paid feature. On plans without it the assistant
+// always answers in English, whatever language the customer writes in.
+const ENGLISH_ONLY_RULE = `LANGUAGE: Always reply in English, regardless of the language the customer
+writes in. Do not translate your answer into any other language.`;
+
+const CLOSING_RULE = `If the knowledge base does not contain the answer, reply EXACTLY with:
 "__UNRESOLVED__"
 Never invent policies, prices, shipping times, or order details.`;
+
+function systemPrompt(allLanguages: boolean): string {
+  const languageRule = allLanguages ? MULTILINGUAL_RULE : ENGLISH_ONLY_RULE;
+  return `${BASE_PROMPT}\n\n${languageRule}\n\n${CLOSING_RULE}`;
+}
+
+const SYSTEM_PROMPT = systemPrompt(true);
 
 async function callGemini(prompt: string, system: string = SYSTEM_PROMPT): Promise<string | null> {
   const key = process.env.GEMINI_API_KEY;
@@ -110,17 +122,21 @@ export async function rankProducts(
 
 export async function answerFromKnowledge(
   question: string,
-  faqs: Array<{ question: string; answer: string }>
+  faqs: Array<{ question: string; answer: string }>,
+  // Defaults to English-only so a caller that forgets to pass the plan cannot
+  // hand out the paid multi-language behaviour by accident.
+  allLanguages = false
 ): Promise<ChatResult> {
   const kb = faqs.length
     ? faqs.map((f, i) => `[${i + 1}] Q: ${f.question}\nA: ${f.answer}`).join('\n\n')
     : '(no knowledge base entries yet)';
 
   const prompt = `STORE KNOWLEDGE BASE:\n${kb}\n\nCUSTOMER QUESTION:\n${question}`;
+  const system = systemPrompt(allLanguages);
 
   for (const p of PROVIDERS) {
     try {
-      const out = await p.fn(prompt);
+      const out = await p.fn(prompt, system);
       if (out) return { text: out, provider: p.name };
     } catch {
       // try next provider

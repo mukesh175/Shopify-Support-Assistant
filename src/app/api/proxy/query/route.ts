@@ -4,6 +4,7 @@ import { getShopToken } from '@/lib/auth/session';
 import { lookupOrder, listOrdersByEmail } from '@/lib/shopify/orders';
 import { answerFromKnowledge, extractKeywords, rankProducts } from '@/lib/ai/answer';
 import { getActivePlan } from '@/lib/shopify/billing';
+import { PLANS } from '@/lib/plans';
 import { recommendProducts } from '@/lib/shopify/products';
 import { db, schema } from '@/lib/db';
 import { and, eq, gte, sql } from 'drizzle-orm';
@@ -159,8 +160,11 @@ export async function POST(req: NextRequest) {
 
   // ---- Plan enforcement: free tier is capped per month ----
   const token = await getShopToken(shopDomain);
+  // Defaults to the free plan so an unresolvable token never unlocks paid
+  // behaviour further down (e.g. multi-language replies).
+  let plan = PLANS.free;
   if (token) {
-    const plan = await getActivePlan(shopDomain, token);
+    plan = await getActivePlan(shopDomain, token);
     if (plan.monthlyQueryLimit !== null) {
       const used = await monthlyCount(shopDomain);
       if (used >= plan.monthlyQueryLimit) {
@@ -178,7 +182,7 @@ export async function POST(req: NextRequest) {
     .from(schema.faqs)
     .where(and(eq(schema.faqs.shopDomain, shopDomain), eq(schema.faqs.enabled, true)));
 
-  const { text } = await answerFromKnowledge(message, faqRows);
+  const { text } = await answerFromKnowledge(message, faqRows, plan.allLanguages);
   const unresolved = text.includes('__UNRESOLVED__');
   const finalText = unresolved
     ? "I'm not sure about that one — I've noted it so the team can follow up. You can also email us directly."

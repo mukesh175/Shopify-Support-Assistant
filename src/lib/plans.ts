@@ -13,6 +13,9 @@ export type Plan = {
   maxFaqs: number | null;
   whatsappHandoff: boolean;
   removeBranding: boolean;
+  // false = the assistant answers in English only; true = it replies in
+  // whatever language the customer wrote in.
+  allLanguages: boolean;
 };
 
 export const PLANS: Record<PlanKey, Plan> = {
@@ -22,9 +25,10 @@ export const PLANS: Record<PlanKey, Plan> = {
     price: '$0',
     monthlyQueryLimit: 100,
     monthlyRecommendationLimit: 5,
-    maxFaqs: 10,
+    maxFaqs: 5,
     whatsappHandoff: false,
     removeBranding: false,
+    allLanguages: false,
   },
   starter: {
     key: 'starter',
@@ -35,6 +39,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     maxFaqs: 50,
     whatsappHandoff: true,
     removeBranding: false,
+    allLanguages: true,
   },
   pro: {
     key: 'pro',
@@ -45,6 +50,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     maxFaqs: null,
     whatsappHandoff: true,
     removeBranding: true,
+    allLanguages: true,
   },
 };
 
