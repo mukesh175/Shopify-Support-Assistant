@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import PlanBanner from './PlanBanner';
-import PlansSection from './PlansSection';
 
 const card: React.CSSProperties = {
   background: '#fff', border: '1px solid #e1e3e5', borderRadius: 14,
@@ -40,9 +39,8 @@ export default function Home() {
 
         <Link href="/faqs" style={btnDark}>Manage knowledge base →</Link>
         <Link href="/analytics" style={btnGhost}>View analytics →</Link>
+        <Link href="/plans" style={btnGhost}>View plans →</Link>
       </div>
-
-      <PlansSection />
     </main>
   );
 }

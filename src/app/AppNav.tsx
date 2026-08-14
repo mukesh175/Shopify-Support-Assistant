@@ -30,6 +30,7 @@ export default function AppNav() {
       <NavLink href="/" label="Home" />
       <NavLink href="/faqs" label="Knowledge base" />
       <NavLink href="/analytics" label="Analytics" />
+      <NavLink href="/plans" label="Plans" />
     </nav>
   );
 }
