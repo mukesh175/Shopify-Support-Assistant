@@ -53,6 +53,12 @@
         '<span class="sa-brandname">' + escapeHtml(BRAND) + '</span>' +
       '</div>' +
       '<div class="sa-hactions">' +
+        '<button class="sa-hist-btn" aria-label="Chat history">' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+          '<path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 106 5.3L3 8"/><path d="M12 7v5l4 2"/></svg></button>' +
+        '<button class="sa-new-btn" aria-label="New chat">' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+          '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg></button>' +
         '<button class="sa-expand" aria-label="Expand">' +
           '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
           '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>' +
@@ -62,6 +68,7 @@
       '</div>' +
     '</div>' +
     '<div class="sa-body"></div>' +
+    '<div class="sa-history"></div>' +
     '<div class="sa-quick">' +
       '<button data-q="faq">Ask a question</button>' +
       '<button data-q="product">Find a product</button>' +
@@ -87,7 +94,12 @@
       .then(function (r) { return r.json(); })
       .then(function (cfg) {
         if (cfg && cfg.branding === false) brandFoot.style.display = 'none';
-        if (cfg && cfg.suggestions && cfg.suggestions.length) SUGGESTIONS = cfg.suggestions;
+        if (cfg && cfg.suggestions && cfg.suggestions.length) {
+          SUGGESTIONS = cfg.suggestions;
+          // The panel may already be open — config can resolve after the
+          // shopper clicks the launcher, which used to lose the chips.
+          if (greeted) showSuggestions();
+        }
         if (cfg && typeof cfg.whatsapp === 'string' && cfg.whatsapp) {
           WHATSAPP = cfg.whatsapp.replace(/[^0-9]/g, '');
           var waQuick = panel.querySelector('.sa-wa-quick');
@@ -100,9 +112,98 @@
   var body = panel.querySelector('.sa-body');
   var textInput = panel.querySelector('.sa-inputbar input');
   var sendBtn = panel.querySelector('.sa-send');
+  var histView = panel.querySelector('.sa-history');
   var mode = 'faq';
   var greeted = false;
   var lastEmail = '';
+
+  /* ---- Chat history -------------------------------------------------------
+   * Kept in the shopper's own browser. Nothing is sent to the server, so a
+   * shared or public device does not leak past conversations to the store,
+   * and the shopper can clear it with normal browser data controls.
+   */
+  var HKEY = 'zappy-chat-history-v1';
+  var MAX_SESSIONS = 20;
+  var sessions = loadSessions();
+  var current = null;
+  var restoring = false;
+
+  function loadSessions() {
+    try {
+      var raw = JSON.parse(window.localStorage.getItem(HKEY));
+      return Object.prototype.toString.call(raw) === '[object Array]' ? raw : [];
+    } catch (e) { return []; }
+  }
+  function saveSessions() {
+    try {
+      sessions = sessions.slice(-MAX_SESSIONS);
+      window.localStorage.setItem(HKEY, JSON.stringify(sessions));
+    } catch (e) { /* private mode or quota — history is best-effort */ }
+  }
+  function record(who, text) {
+    if (restoring || !text) return;
+    if (!current) {
+      current = { startedAt: new Date().toISOString(), messages: [] };
+      sessions.push(current);
+    }
+    current.messages.push({ who: who, text: text });
+    saveSessions();
+  }
+
+  function fmtDateTime(iso) {
+    try {
+      var d = new Date(iso);
+      return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) +
+        ', ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    } catch (e) { return ''; }
+  }
+
+  function showHistory() {
+    histView.innerHTML = '';
+    var head = el('div', 'sa-hist-head');
+    var back = el('button', 'sa-hist-back', '← Back');
+    back.addEventListener('click', hideHistory);
+    head.appendChild(back);
+    histView.appendChild(head);
+    histView.appendChild(el('div', 'sa-hist-title', 'Chat history'));
+
+    var past = sessions.filter(function (s) { return s.messages && s.messages.length; });
+    if (!past.length) {
+      histView.appendChild(el('div', 'sa-hist-empty', 'No previous chats yet.'));
+    } else {
+      past.slice().reverse().forEach(function (s) {
+        var item = el('button', 'sa-hist-item');
+        item.appendChild(el('div', 'sa-hist-when', fmtDateTime(s.startedAt)));
+        var last = s.messages[s.messages.length - 1];
+        item.appendChild(el('div', 'sa-hist-prev', last ? last.text : ''));
+        item.addEventListener('click', function () { openSession(s); });
+        histView.appendChild(item);
+      });
+    }
+    panel.classList.add('sa-showhist');
+  }
+  function hideHistory() { panel.classList.remove('sa-showhist'); }
+
+  function openSession(s) {
+    body.innerHTML = '';
+    restoring = true;
+    s.messages.forEach(function (m) {
+      if (m.who === 'user') user(m.text); else bot(m.text);
+    });
+    restoring = false;
+    current = s;
+    greeted = true;
+    hideHistory();
+    showSuggestions();
+  }
+
+  function newChat() {
+    current = null;
+    body.innerHTML = '';
+    greeted = false;
+    hideHistory();
+    open();
+  }
 
   // The welcome panel stands in for the first bot message. It is cleared the
   // moment a real conversation starts so it never sits above the transcript.
@@ -128,7 +229,15 @@
     }
   }
 
+  /**
+   * Render the saved-question chips at the bottom of the transcript. Called
+   * again after every answer so the shopper can keep picking from the
+   * knowledge base instead of having to think of wording themselves — and
+   * re-called when /config resolves, since it may land after the panel opens.
+   */
   function showSuggestions() {
+    var old = body.querySelector('.sa-suggests');
+    if (old) old.remove();
     if (!SUGGESTIONS.length) return;
     var wrap = el('div', 'sa-suggests');
     SUGGESTIONS.slice(0, 4).forEach(function (q) {
@@ -150,6 +259,14 @@
     panel.classList.contains('sa-open') ? close() : open();
   });
   panel.querySelector('.sa-close').addEventListener('click', close);
+  panel.querySelector('.sa-hist-btn').addEventListener('click', function () {
+    this.blur();
+    panel.classList.contains('sa-showhist') ? hideHistory() : showHistory();
+  });
+  panel.querySelector('.sa-new-btn').addEventListener('click', function () {
+    this.blur();
+    newChat();
+  });
   panel.querySelector('.sa-expand').addEventListener('click', function () {
     panel.classList.toggle('sa-expanded');
     body.scrollTop = body.scrollHeight;
@@ -157,6 +274,7 @@
 
   panel.querySelectorAll('.sa-quick button').forEach(function (b) {
     b.addEventListener('click', function () {
+      b.blur();
       var q = b.dataset.q;
       if (q === 'order') { showOrderChoice(); }
       else if (q === 'wa') { if (waReady()) openWhatsApp('Hi, I need help.'); }
@@ -278,6 +396,8 @@
         if (data.kind === 'order_list' && data.orders && data.orders.length) renderOrderList(data.orders);
         if (data.kind === 'recommend' && data.products && data.products.length) renderProducts(data.products);
         if (waReady() && (data.kind === 'unresolved' || data.kind === 'limit' || data.kind === 'recommend_locked')) offerWhatsApp(payload.message || 'my question');
+        // Offer the saved questions again so the next question is one tap.
+        showSuggestions();
       })
       .catch(function () {
         typing.remove(); bot('Sorry, I could not reach support right now.');
@@ -383,6 +503,7 @@
     if (isTyping) m.innerHTML = '<span></span><span></span><span></span>';
     row.appendChild(m);
     if (caption) row.appendChild(el('div', 'sa-meta', caption + ' · ' + fmtTime()));
+    if (!isTyping) record(cls === 'sa-user' ? 'user' : 'bot', text);
     body.appendChild(row);
     body.scrollTop = body.scrollHeight;
     // Callers remove the typing indicator, so hand back the row for both cases.

@@ -41,14 +41,46 @@
   font-size: 15px; font-weight: 600; color: #1a1a1a;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.sa-hactions { display: flex; gap: 4px; flex-shrink: 0; }
-.sa-expand, .sa-close {
+.sa-hactions { display: flex; gap: 2px; flex-shrink: 0; }
+.sa-expand, .sa-close, .sa-hist-btn, .sa-new-btn {
   background: none; border: none; color: #6b7177; cursor: pointer;
   width: 30px; height: 30px; border-radius: 50%; padding: 0;
   display: flex; align-items: center; justify-content: center;
   transition: background .12s ease, color .12s ease;
 }
-.sa-expand:hover, .sa-close:hover { background: #f2f3f5; color: #1a1a1a; }
+.sa-expand:hover, .sa-close:hover, .sa-hist-btn:hover, .sa-new-btn:hover {
+  background: #f2f3f5; color: #1a1a1a;
+}
+.sa-expand:focus, .sa-close:focus, .sa-hist-btn:focus, .sa-new-btn:focus { outline: none; }
+
+/* Chat history — overlays the transcript, so the composer is hidden while it
+   is open and there is no ambiguity about what typing would do. */
+.sa-history {
+  display: none; flex: 1; overflow-y: auto; padding: 16px; background: #fff;
+}
+.sa-panel.sa-showhist .sa-history { display: block; }
+.sa-panel.sa-showhist .sa-body,
+.sa-panel.sa-showhist .sa-quick,
+.sa-panel.sa-showhist .sa-inputbar { display: none; }
+.sa-hist-head { margin-bottom: 6px; }
+.sa-hist-back {
+  background: none; border: none; padding: 4px 0; cursor: pointer;
+  font-size: 13.5px; color: #5c6166; font-family: inherit;
+}
+.sa-hist-back:hover { color: #1a1a1a; }
+.sa-hist-title { font-size: 20px; font-weight: 700; color: #1a1a1a; margin-bottom: 12px; }
+.sa-hist-empty { font-size: 14px; color: #6b7177; }
+.sa-hist-item {
+  display: block; width: 100%; text-align: left; background: none;
+  border: none; border-top: 1px solid #f0f0f2; padding: 12px 4px;
+  cursor: pointer; font-family: inherit;
+}
+.sa-hist-item:hover { background: #fafbfc; }
+.sa-hist-when { font-size: 13.5px; font-weight: 600; color: #1a1a1a; }
+.sa-hist-prev {
+  font-size: 13px; color: #6b7177; margin-top: 3px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 .sa-body {
   flex: 1; overflow-y: auto; padding: 16px;
@@ -118,6 +150,12 @@
   transition: background .12s ease; font-family: inherit;
 }
 .sa-quick button:hover { background: #f4f5f7; }
+/* Only show a ring for keyboard users — a mouse click used to leave the chip
+   looking permanently pressed. */
+.sa-quick button:focus { outline: none; }
+.sa-quick button:focus-visible { outline: 2px solid #1a1a1a; outline-offset: 1px; }
+.sa-suggest:focus { outline: none; }
+.sa-suggest:focus-visible { outline: 2px solid #1a1a1a; outline-offset: 1px; }
 .sa-wa-quick { border-color: #25d366 !important; color: #128c3e !important; }
 
 .sa-products { display: flex; flex-direction: column; gap: 8px; align-self: stretch; }
