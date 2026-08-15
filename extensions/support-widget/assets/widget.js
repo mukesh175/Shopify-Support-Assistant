@@ -9,6 +9,8 @@
   var POPUP = root.dataset.popup || '';
   var ICON = root.dataset.icon || 'bubble';
   var POSITION = root.dataset.position === 'left' ? 'left' : 'right';
+  var BRAND = root.dataset.brandName || 'Support';
+  var CUSTOMER = root.dataset.customerName || '';
   var SUGGESTIONS = [];
   // WhatsApp handoff is a paid feature. The number is served by /config only
   // when the shop's plan includes handoff, so it is never present in the page
@@ -44,25 +46,33 @@
   var panel = el('div', 'sa-panel');
   panel.style[POSITION] = '20px';
   panel.innerHTML =
-    '<div class="sa-header" style="background:' + ACCENT + ';color:' + TEXTCOLOR + '">' +
-      '<span>Support</span><button class="sa-close" aria-label="Close" style="color:' + TEXTCOLOR + '">×</button></div>' +
+    '<div class="sa-header">' +
+      '<div class="sa-ident">' +
+        '<span class="sa-avatar" style="background:' + ACCENT + ';color:' + TEXTCOLOR + '">' +
+          escapeHtml((BRAND || '?').charAt(0).toUpperCase()) + '</span>' +
+        '<span class="sa-brandname">' + escapeHtml(BRAND) + '</span>' +
+      '</div>' +
+      '<div class="sa-hactions">' +
+        '<button class="sa-expand" aria-label="Expand">' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+          '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>' +
+        '<button class="sa-close" aria-label="Close">' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">' +
+          '<path d="M5 12h14"/></svg></button>' +
+      '</div>' +
+    '</div>' +
     '<div class="sa-body"></div>' +
     '<div class="sa-quick">' +
-      '<button data-q="faq">💬 Ask a question</button>' +
-      '<button data-q="product">🛍️ Find a product</button>' +
-      '<button data-q="order">📦 Track my order</button>' +
+      '<button data-q="faq">Ask a question</button>' +
+      '<button data-q="product">Find a product</button>' +
+      '<button data-q="order">Track my order</button>' +
       '<button data-q="wa" class="sa-wa-quick" style="display:none">WhatsApp us</button>' +
     '</div>' +
-    '<form class="sa-order-form">' +
-      '<input name="orderName" placeholder="Order number e.g. #1001" required>' +
-      '<input name="email" type="email" placeholder="Email used at checkout" required>' +
-      '<button type="submit" style="background:' + ACCENT + ';color:' + TEXTCOLOR + '">Check status</button></form>' +
-    '<form class="sa-email-form">' +
-      '<input name="email" type="email" placeholder="Email used at checkout" required>' +
-      '<button type="submit" style="background:' + ACCENT + ';color:' + TEXTCOLOR + '">Find my orders</button></form>' +
     '<div class="sa-inputbar">' +
-      '<input type="text" placeholder="Type your message…">' +
-      '<button class="sa-send" style="background:' + ACCENT + ';color:' + TEXTCOLOR + '" aria-label="Send">→</button></div>';
+      '<input type="text" placeholder="Ask anything…">' +
+      '<button class="sa-send" style="background:' + ACCENT + ';color:' + TEXTCOLOR + '" aria-label="Send">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div>';
 
   document.body.appendChild(launcher);
   if (pop) document.body.appendChild(pop);
@@ -90,17 +100,29 @@
   var body = panel.querySelector('.sa-body');
   var textInput = panel.querySelector('.sa-inputbar input');
   var sendBtn = panel.querySelector('.sa-send');
-  var orderForm = panel.querySelector('.sa-order-form');
-  var emailForm = panel.querySelector('.sa-email-form');
   var mode = 'faq';
   var greeted = false;
   var lastEmail = '';
+
+  // The welcome panel stands in for the first bot message. It is cleared the
+  // moment a real conversation starts so it never sits above the transcript.
+  function showWelcome() {
+    var wrap = el('div', 'sa-welcome');
+    var hi = CUSTOMER ? 'Hi ' + CUSTOMER + '!' : 'Hi there!';
+    wrap.appendChild(el('div', 'sa-welcome-title', hi));
+    wrap.appendChild(el('div', 'sa-welcome-sub', GREETING));
+    body.appendChild(wrap);
+  }
+  function clearWelcome() {
+    var w = body.querySelector('.sa-welcome');
+    if (w) w.remove();
+  }
 
   function open() {
     panel.classList.add('sa-open');
     if (pop) { pop.remove(); pop = null; }
     if (!greeted) {
-      bot(GREETING);
+      showWelcome();
       showSuggestions();
       greeted = true;
     }
@@ -128,37 +150,114 @@
     panel.classList.contains('sa-open') ? close() : open();
   });
   panel.querySelector('.sa-close').addEventListener('click', close);
+  panel.querySelector('.sa-expand').addEventListener('click', function () {
+    panel.classList.toggle('sa-expanded');
+    body.scrollTop = body.scrollHeight;
+  });
 
   panel.querySelectorAll('.sa-quick button').forEach(function (b) {
     b.addEventListener('click', function () {
       var q = b.dataset.q;
       if (q === 'order') { showOrderChoice(); }
       else if (q === 'wa') { if (waReady()) openWhatsApp('Hi, I need help.'); }
-      else if (q === 'product') { mode = 'product'; orderForm.classList.remove('sa-show'); textInput.placeholder = 'What are you looking for?'; bot('What are you looking for? e.g. "black snowboard" or "gift under $500".'); textInput.focus(); }
-      else { mode = 'faq'; orderForm.classList.remove('sa-show'); textInput.placeholder = 'Type your question…'; textInput.focus(); }
+      else if (q === 'product') { mode = 'product'; textInput.placeholder = 'What are you looking for?'; bot('What are you looking for? e.g. "black snowboard" or "gift under $500".'); textInput.focus(); }
+      else { mode = 'faq'; textInput.placeholder = 'Ask anything…'; textInput.focus(); }
     });
   });
 
   sendBtn.addEventListener('click', sendText);
   textInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendText(); });
 
-  orderForm.addEventListener('submit', function (e) {
-    e.preventDefault();
-    var name = orderForm.orderName.value.trim(), email = orderForm.email.value.trim();
-    if (!name || !email) return;
-    lastEmail = email;
-    user('Track order ' + name); orderForm.classList.remove('sa-show');
-    post({ intent: 'order', orderName: name, email: email });
-  });
+  /**
+   * Build a form rendered as a card inside the transcript (rather than docked
+   * at the bottom), so collecting details reads as part of the conversation.
+   * `fields` is a list of {name, type, placeholder, value}.
+   */
+  function formCard(opts) {
+    var card = el('form', 'sa-formcard');
+    var head = el('div', 'sa-fc-head');
+    head.appendChild(el('div', 'sa-fc-icon', opts.icon || '📦'));
+    var htext = el('div', 'sa-fc-htext');
+    htext.appendChild(el('div', 'sa-fc-title', opts.title));
+    htext.appendChild(el('div', 'sa-fc-sub', opts.subtitle));
+    head.appendChild(htext);
+    card.appendChild(head);
 
-  emailForm.addEventListener('submit', function (e) {
-    e.preventDefault();
-    var email = emailForm.email.value.trim();
-    if (!email) return;
-    lastEmail = email;
-    user(email); emailForm.classList.remove('sa-show');
-    post({ intent: 'orders_by_email', email: email });
-  });
+    opts.fields.forEach(function (f) {
+      var input = el('input', 'sa-fc-input');
+      input.name = f.name;
+      input.type = f.type || 'text';
+      input.placeholder = f.placeholder;
+      if (f.value) input.value = f.value;
+      input.required = true;
+      card.appendChild(input);
+    });
+
+    var actions = el('div', 'sa-fc-actions');
+    var cancel = el('button', 'sa-fc-cancel', 'Cancel');
+    cancel.type = 'button';
+    var submit = el('button', 'sa-fc-submit', opts.cta);
+    submit.type = 'submit';
+    submit.style.background = ACCENT;
+    submit.style.color = TEXTCOLOR;
+    actions.appendChild(cancel);
+    actions.appendChild(submit);
+    card.appendChild(actions);
+
+    cancel.addEventListener('click', function () { card.remove(); });
+    card.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var values = {};
+      var ok = true;
+      opts.fields.forEach(function (f) {
+        var v = card[f.name].value.trim();
+        if (!v) ok = false;
+        values[f.name] = v;
+      });
+      if (!ok) return;
+      card.remove();
+      opts.onSubmit(values);
+    });
+
+    body.appendChild(card);
+    body.scrollTop = body.scrollHeight;
+    return card;
+  }
+
+  function showOrderNumberForm() {
+    formCard({
+      icon: '📦',
+      title: 'Track my order',
+      subtitle: 'Please provide your information.',
+      cta: 'Track my order',
+      fields: [
+        { name: 'orderName', placeholder: 'Order number' },
+        { name: 'email', type: 'email', placeholder: 'Email used at checkout', value: lastEmail }
+      ],
+      onSubmit: function (v) {
+        lastEmail = v.email;
+        user('Track order ' + v.orderName);
+        post({ intent: 'order', orderName: v.orderName, email: v.email });
+      }
+    });
+  }
+
+  function showEmailForm() {
+    formCard({
+      icon: '📧',
+      title: 'Find my orders',
+      subtitle: 'We’ll look up orders placed with this email.',
+      cta: 'Find my orders',
+      fields: [
+        { name: 'email', type: 'email', placeholder: 'Email used at checkout', value: lastEmail }
+      ],
+      onSubmit: function (v) {
+        lastEmail = v.email;
+        user(v.email);
+        post({ intent: 'orders_by_email', email: v.email });
+      }
+    });
+  }
 
   function sendText() {
     var v = textInput.value.trim(); if (!v) return;
@@ -191,8 +290,8 @@
     var wrap = el('div', 'sa-suggests');
     var b1 = el('button', 'sa-suggest', '🔢 I have my order number');
     var b2 = el('button', 'sa-suggest', '📧 Find my orders by email');
-    b1.addEventListener('click', function () { wrap.remove(); orderForm.classList.add('sa-show'); emailForm.classList.remove('sa-show'); bot('Enter your order number and email:'); });
-    b2.addEventListener('click', function () { wrap.remove(); emailForm.classList.add('sa-show'); orderForm.classList.remove('sa-show'); bot('Enter the email you used at checkout and I’ll list your orders:'); });
+    b1.addEventListener('click', function () { wrap.remove(); showOrderNumberForm(); });
+    b2.addEventListener('click', function () { wrap.remove(); showEmailForm(); });
     wrap.appendChild(b1); wrap.appendChild(b2);
     body.appendChild(wrap); body.scrollTop = body.scrollHeight;
   }
@@ -267,12 +366,33 @@
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   }
 
-  function bot(text, typing) {
-    var m = el('div', 'sa-msg sa-bot' + (typing ? ' sa-typing' : ''), typing ? '' : text);
-    if (typing) m.innerHTML = '<span></span><span></span><span></span>';
-    body.appendChild(m); body.scrollTop = body.scrollHeight; return m;
+  function fmtTime() {
+    try {
+      return new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    } catch (e) { return ''; }
   }
-  function user(text) { var m = el('div', 'sa-msg sa-user', text); body.appendChild(m); body.scrollTop = body.scrollHeight; return m; }
+
+  /**
+   * Wrap a bubble in a row so a caption can sit under it. Typing indicators get
+   * no caption — they are replaced by the real message a moment later.
+   */
+  function addMessage(cls, text, caption, isTyping) {
+    clearWelcome();
+    var row = el('div', 'sa-row ' + cls);
+    var m = el('div', 'sa-msg ' + cls + (isTyping ? ' sa-typing' : ''), isTyping ? '' : text);
+    if (isTyping) m.innerHTML = '<span></span><span></span><span></span>';
+    row.appendChild(m);
+    if (caption) row.appendChild(el('div', 'sa-meta', caption + ' · ' + fmtTime()));
+    body.appendChild(row);
+    body.scrollTop = body.scrollHeight;
+    // Callers remove the typing indicator, so hand back the row for both cases.
+    return row;
+  }
+
+  function bot(text, typing) {
+    return addMessage('sa-bot', text, typing ? '' : 'Automated', !!typing);
+  }
+  function user(text) { return addMessage('sa-user', text, 'Sent', false); }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null && text !== '') e.textContent = text; return e; }
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 })();

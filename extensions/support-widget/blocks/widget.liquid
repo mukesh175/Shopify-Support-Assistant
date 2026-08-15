@@ -12,6 +12,8 @@
   data-popup="{{ block.settings.popup_text | escape }}"
   data-icon="{{ block.settings.launcher_icon }}"
   data-position="{{ block.settings.position }}"
+  data-brand-name="{{ shop.name | escape }}"
+  data-customer-name="{{ customer.first_name | escape }}"
 ></div>
 
 <link rel="stylesheet" href="{{ 'widget.css' | asset_url }}">

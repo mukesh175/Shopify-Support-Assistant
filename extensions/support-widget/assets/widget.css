@@ -11,37 +11,96 @@
 
 .sa-panel {
   position: fixed; bottom: 90px;
-  width: 370px; max-width: calc(100vw - 32px);
-  height: 540px; max-height: calc(100vh - 130px);
-  background: #fff; border-radius: 18px;
-  box-shadow: 0 16px 50px rgba(0,0,0,.24);
+  width: 400px; max-width: calc(100vw - 32px);
+  height: 580px; max-height: calc(100vh - 130px);
+  background: #fff; border-radius: 22px;
+  box-shadow: 0 12px 44px rgba(0,0,0,.16), 0 2px 8px rgba(0,0,0,.06);
   display: none; flex-direction: column; overflow: hidden;
   z-index: 2147483000;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  opacity: 0; transform: translateY(10px); transition: opacity .18s ease, transform .18s ease;
+  opacity: 0; transform: translateY(10px);
+  transition: opacity .18s ease, transform .18s ease, width .2s ease, height .2s ease;
 }
 .sa-panel.sa-open { display: flex; opacity: 1; transform: translateY(0); }
+/* Expanded view — roomier for order timelines and product lists. */
+.sa-panel.sa-expanded {
+  width: 620px; height: calc(100vh - 130px);
+}
 
 .sa-header {
-  padding: 16px 18px; color: #fff; font-weight: 700; font-size: 16px;
-  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; background: #fff; border-bottom: 1px solid #f0f0f2;
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
 }
-.sa-close {
-  background: rgba(255,255,255,.18); border: none; color: #fff;
-  width: 26px; height: 26px; border-radius: 50%; font-size: 18px;
-  line-height: 1; cursor: pointer;
+.sa-ident { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.sa-avatar {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
 }
+.sa-brandname {
+  font-size: 15px; font-weight: 600; color: #1a1a1a;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sa-hactions { display: flex; gap: 4px; flex-shrink: 0; }
+.sa-expand, .sa-close {
+  background: none; border: none; color: #6b7177; cursor: pointer;
+  width: 30px; height: 30px; border-radius: 50%; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s ease, color .12s ease;
+}
+.sa-expand:hover, .sa-close:hover { background: #f2f3f5; color: #1a1a1a; }
 
 .sa-body {
   flex: 1; overflow-y: auto; padding: 16px;
-  display: flex; flex-direction: column; gap: 10px; background: #f6f7f9;
+  display: flex; flex-direction: column; gap: 10px; background: #fff;
 }
+
+/* Welcome panel — stands in for the first bot message. */
+.sa-welcome { padding: 8px 2px 2px; }
+.sa-welcome-title { font-size: 22px; font-weight: 700; color: #1a1a1a; line-height: 1.25; }
+.sa-welcome-sub { font-size: 14.5px; color: #5c6166; line-height: 1.55; margin-top: 8px; }
+
+/* A row holds the bubble plus its caption so they align together. */
+.sa-row { display: flex; flex-direction: column; gap: 3px; max-width: 86%; }
+.sa-row.sa-bot { align-self: flex-start; align-items: flex-start; }
+.sa-row.sa-user { align-self: flex-end; align-items: flex-end; }
+.sa-meta { font-size: 11px; color: #9a9da2; padding: 0 4px; }
+
 .sa-msg {
-  max-width: 84%; padding: 10px 13px; border-radius: 14px;
+  padding: 10px 14px; border-radius: 16px;
   font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
 }
-.sa-bot { background: #fff; border: 1px solid #ececf0; align-self: flex-start; color: #1a1a1a; }
-.sa-user { color: #fff; align-self: flex-end; background: #1a1a1a; }
+.sa-msg.sa-bot { background: #f4f5f7; align-self: flex-start; color: #1a1a1a; border-bottom-left-radius: 6px; }
+.sa-msg.sa-user { color: #fff; align-self: flex-end; background: #1a1a1a; border-bottom-right-radius: 6px; }
+
+/* In-chat form card (order tracking, email lookup). */
+.sa-formcard {
+  align-self: stretch; background: #fff; border: 1px solid #e3e5e8;
+  border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.sa-fc-head { display: flex; gap: 11px; align-items: flex-start; }
+.sa-fc-icon {
+  width: 38px; height: 38px; border-radius: 10px; background: #f4f5f7;
+  display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0;
+}
+.sa-fc-htext { min-width: 0; }
+.sa-fc-title { font-size: 14.5px; font-weight: 600; color: #1a1a1a; }
+.sa-fc-sub { font-size: 13px; color: #6b7177; margin-top: 2px; line-height: 1.4; }
+.sa-fc-input {
+  padding: 11px 13px; border: 1px solid #d4d7db; border-radius: 10px;
+  font-size: 14px; outline: none; width: 100%; box-sizing: border-box;
+  font-family: inherit;
+}
+.sa-fc-input:focus { border-color: #1a1a1a; }
+.sa-fc-actions { display: flex; gap: 9px; }
+.sa-fc-cancel, .sa-fc-submit {
+  flex: 1; padding: 11px; border-radius: 10px; font-size: 14px;
+  font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.sa-fc-cancel { background: #fff; border: 1px solid #d4d7db; color: #1a1a1a; }
+.sa-fc-cancel:hover { background: #f7f8f9; }
+.sa-fc-submit { border: none; }
 
 .sa-typing { display: flex; gap: 4px; padding: 14px 13px; }
 .sa-typing span {
@@ -52,13 +111,13 @@
 .sa-typing span:nth-child(3) { animation-delay: .3s; }
 @keyframes sa-bounce { 0%,80%,100%{opacity:.3;transform:translateY(0)} 40%{opacity:1;transform:translateY(-4px)} }
 
-.sa-quick { display: flex; gap: 7px; flex-wrap: wrap; padding: 10px 16px; background: #f6f7f9; }
+.sa-quick { display: flex; gap: 7px; flex-wrap: wrap; padding: 4px 16px 10px; background: #fff; }
 .sa-quick button {
-  font-size: 12.5px; padding: 7px 12px; border: 1px solid #dcdee3;
+  font-size: 13px; padding: 8px 14px; border: 1px solid #d4d7db;
   border-radius: 999px; background: #fff; cursor: pointer; color: #1a1a1a;
-  transition: background .12s ease;
+  transition: background .12s ease; font-family: inherit;
 }
-.sa-quick button:hover { background: #f0f1f4; }
+.sa-quick button:hover { background: #f4f5f7; }
 .sa-wa-quick { border-color: #25d366 !important; color: #128c3e !important; }
 
 .sa-products { display: flex; flex-direction: column; gap: 8px; align-self: stretch; }
@@ -77,20 +136,23 @@
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .sa-card-price { font-size: 13px; color: #444; margin-top: 2px; }
 
-.sa-order-form { display: none; flex-direction: column; gap: 8px; padding: 12px 16px; background: #fff; border-top: 1px solid #ececf0; }
-.sa-order-form.sa-show { display: flex; }
-.sa-order-form input { padding: 10px 12px; border: 1px solid #dcdee3; border-radius: 10px; font-size: 14px; }
-.sa-order-form button { border: none; color: #fff; padding: 10px; border-radius: 10px; cursor: pointer; font-weight: 600; }
 
-.sa-inputbar { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #ececf0; background: #fff; }
-.sa-inputbar input {
-  flex: 1; padding: 10px 14px; border: 1px solid #dcdee3; border-radius: 999px;
-  font-size: 14px; outline: none;
+/* Pill input bar — the border wraps input and send button as one control. */
+.sa-inputbar {
+  display: flex; gap: 8px; align-items: center; margin: 0 14px 14px;
+  padding: 6px 6px 6px 8px; border: 1px solid #d4d7db; border-radius: 999px;
+  background: #fff; flex-shrink: 0;
+  transition: border-color .12s ease;
 }
-.sa-inputbar input:focus { border-color: #a9adb6; }
+.sa-inputbar:focus-within { border-color: #1a1a1a; }
+.sa-inputbar input {
+  flex: 1; padding: 9px 10px; border: none; background: none;
+  font-size: 14.5px; outline: none; font-family: inherit; color: #1a1a1a;
+  min-width: 0;
+}
 .sa-send {
-  border: none; color: #fff; width: 40px; border-radius: 50%; cursor: pointer;
-  font-size: 18px; font-weight: 700; flex-shrink: 0;
+  border: none; width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0;
 }
 
 .sa-wa-btn {
@@ -161,10 +223,6 @@
   font-weight: 600; color: #2c6ecb; text-decoration: none;
 }
 
-.sa-email-form { display: none; flex-direction: column; gap: 8px; padding: 12px 16px; background: #fff; border-top: 1px solid #ececf0; }
-.sa-email-form.sa-show { display: flex; }
-.sa-email-form input { padding: 10px 12px; border: 1px solid #dcdee3; border-radius: 10px; font-size: 14px; }
-.sa-email-form button { border: none; color: #fff; padding: 10px; border-radius: 10px; cursor: pointer; font-weight: 600; }
 
 .sa-order-item {
   display: flex; justify-content: space-between; align-items: center;
