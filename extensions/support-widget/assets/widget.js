@@ -95,7 +95,9 @@
       .then(function (cfg) {
         if (cfg && cfg.branding === false) brandFoot.style.display = 'none';
         if (cfg && cfg.suggestions && cfg.suggestions.length) {
-          SUGGESTIONS = cfg.suggestions;
+          SUGGESTIONS = cfg.suggestions.filter(function (q) {
+            return typeof q === 'string' && q.trim();
+          });
           // The panel may already be open — config can resolve after the
           // shopper clicks the launcher, which used to lose the chips.
           if (greeted) showSuggestions();
@@ -322,7 +324,15 @@
     actions.appendChild(submit);
     card.appendChild(actions);
 
-    cancel.addEventListener('click', function () { card.remove(); });
+    // While the card is asking for details, the quick actions and saved
+    // questions below it are noise — and one of them repeats the card's own
+    // submit button.
+    panel.classList.add('sa-forming');
+    var sug = body.querySelector('.sa-suggests');
+    if (sug) sug.remove();
+    function done() { panel.classList.remove('sa-forming'); card.remove(); }
+
+    cancel.addEventListener('click', function () { done(); showSuggestions(); });
     card.addEventListener('submit', function (e) {
       e.preventDefault();
       var values = {};
@@ -333,7 +343,7 @@
         values[f.name] = v;
       });
       if (!ok) return;
-      card.remove();
+      done();
       opts.onSubmit(values);
     });
 

@@ -29,7 +29,10 @@ export async function GET(req: NextRequest) {
       .where(and(eq(schema.faqs.shopDomain, shopDomain), eq(schema.faqs.enabled, true)))
       .orderBy(desc(schema.faqs.createdAt))
       .limit(4);
-    const suggestions = faqs.map((f) => f.question);
+    // Guard against blank questions, which would render as an empty chip.
+    const suggestions = faqs
+      .map((f) => (f.question ?? '').trim())
+      .filter(Boolean);
 
     const token = await getShopToken(shopDomain);
     let branding = true;

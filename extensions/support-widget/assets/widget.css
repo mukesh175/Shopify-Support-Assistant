@@ -81,6 +81,8 @@
 .sa-panel.sa-showhist .sa-body,
 .sa-panel.sa-showhist .sa-quick,
 .sa-panel.sa-showhist .sa-inputbar { display: none; }
+/* A form card owns the conversation until it is submitted or cancelled. */
+.sa-panel.sa-forming .sa-quick { display: none; }
 .sa-hist-head { margin-bottom: 6px; }
 .sa-hist-back {
   background: none; border: none; padding: 4px 0; cursor: pointer;
