@@ -1,13 +1,22 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sql } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
-// Visit https://your-app.vercel.app/api/health to isolate problems.
-// Reports which env vars are present (booleans only, never values) and whether
-// the Neon DB is reachable + whether the tables exist.
-export async function GET() {
+/**
+ * Visit https://your-app.vercel.app/api/health to isolate problems.
+ *
+ * Unauthenticated callers get a bare ok/not-ok, which is all an uptime monitor
+ * needs. The breakdown — which env vars are set, raw database errors — names
+ * internal hostnames and schema details, so it is returned only when
+ * HEALTH_TOKEN is configured and supplied as ?token=. Values are never
+ * returned, only whether a variable is present.
+ */
+export async function GET(req: NextRequest) {
+  const secret = process.env.HEALTH_TOKEN;
+  const supplied = new URL(req.url).searchParams.get('token');
+  const detailed = !!secret && supplied === secret;
   const env = {
     SHOPIFY_API_KEY: !!process.env.SHOPIFY_API_KEY,
     SHOPIFY_API_SECRET: !!process.env.SHOPIFY_API_SECRET,
@@ -37,8 +46,11 @@ export async function GET() {
     }
   }
 
+  const ok = dbConnected && tablesExist && env.SHOPIFY_API_SECRET;
+  if (!detailed) return NextResponse.json({ ok });
+
   return NextResponse.json({
-    ok: dbConnected && tablesExist && env.SHOPIFY_API_SECRET,
+    ok,
     env,
     dbConnected,
     tablesExist,
