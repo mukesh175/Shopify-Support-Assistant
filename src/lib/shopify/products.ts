@@ -1,4 +1,4 @@
-import { LATEST_API_VERSION } from '@shopify/shopify-api';
+import { ADMIN_API_VERSION } from './api-version';
 
 export type ProductRec = {
   title: string;
@@ -38,7 +38,7 @@ async function fetchCandidates(
   // Broaden the search: match title/tag/product_type, in stock preferred.
   const q = `${keywords} status:active`.trim();
   const res = await fetch(
-    `https://${shopDomain}/admin/api/${LATEST_API_VERSION}/graphql.json`,
+    `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`,
     {
       method: 'POST',
       headers: {

@@ -1,4 +1,4 @@
-import { LATEST_API_VERSION } from '@shopify/shopify-api';
+import { ADMIN_API_VERSION } from './api-version';
 import { Plan, planFromSubscriptionName } from '@/lib/plans';
 
 /**
@@ -24,7 +24,7 @@ export async function getActivePlan(
 ): Promise<Plan> {
   try {
     const res = await fetch(
-      `https://${shopDomain}/admin/api/${LATEST_API_VERSION}/graphql.json`,
+      `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`,
       {
         method: 'POST',
         headers: {

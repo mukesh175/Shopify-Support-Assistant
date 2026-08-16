@@ -19,7 +19,7 @@ redirect_urls = [
 ]
 
 [webhooks]
-api_version = "2025-01"
+api_version = "2025-07"  # keep in step with ADMIN_API_VERSION in src/lib/shopify/api-version.ts
 
   [[webhooks.subscriptions]]
   topics = ["app/uninstalled"]

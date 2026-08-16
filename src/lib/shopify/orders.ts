@@ -1,4 +1,4 @@
-import { LATEST_API_VERSION } from '@shopify/shopify-api';
+import { ADMIN_API_VERSION } from './api-version';
 
 /**
  * Look up an order's fulfillment/tracking status by order name + customer email.
@@ -126,7 +126,7 @@ export async function listOrdersByEmail(
   const clean = email.trim().toLowerCase();
   const q = `email:'${clean}'`;
   const res = await fetch(
-    `https://${shopDomain}/admin/api/${LATEST_API_VERSION}/graphql.json`,
+    `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`,
     {
       method: 'POST',
       headers: {
@@ -164,7 +164,7 @@ export async function lookupOrder(
   const q = `name:${cleanName} email:'${email.trim().toLowerCase()}'`;
 
   const res = await fetch(
-    `https://${shopDomain}/admin/api/${LATEST_API_VERSION}/graphql.json`,
+    `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`,
     {
       method: 'POST',
       headers: {
