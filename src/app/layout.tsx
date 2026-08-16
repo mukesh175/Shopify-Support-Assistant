@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import '@shopify/polaris/build/esm/styles.css';
+import PolarisProvider from './PolarisProvider';
 import AppNav from './AppNav';
 
 export const metadata: Metadata = {
@@ -14,17 +16,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
       </head>
-      <body
-        style={{
-          fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-          margin: 0,
-          background: '#f1f2f4',
-          color: '#1a1a1a',
-        }}
-      >
-        <AppNav />
-        {children}
+      <body>
+        <PolarisProvider>
+          <AppNav />
+          {children}
+        </PolarisProvider>
       </body>
     </html>
   );

@@ -1,23 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import {
+  Page, Layout, Card, BlockStack, InlineStack, Text, TextField, Button,
+  Banner, ResourceList, ResourceItem, EmptyState, SkeletonBodyText,
+} from '@shopify/polaris';
 import { apiFetch } from '../lib-client';
 
 type Faq = { id: number; question: string; answer: string; enabled: boolean };
-
-const card: React.CSSProperties = {
-  background: '#fff', border: '1px solid #e1e3e5', borderRadius: 12,
-  padding: 24, maxWidth: 720, margin: '0 auto 16px',
-};
-const input: React.CSSProperties = {
-  width: '100%', padding: '10px 12px', border: '1px solid #c9cccf',
-  borderRadius: 8, marginBottom: 10, boxSizing: 'border-box', fontSize: 14,
-};
-const errBox: React.CSSProperties = {
-  background: '#fbeae5', border: '1px solid #e0b3a4', color: '#8a2c0d',
-  borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: 13,
-  whiteSpace: 'pre-wrap',
-};
 
 export default function FaqsPage() {
   const [faqs, setFaqs] = useState<Faq[]>([]);
@@ -33,13 +23,10 @@ export default function FaqsPage() {
     try {
       const res = await apiFetch('/api/faqs');
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(`Load failed (${res.status}): ${data.error ?? 'unknown'}. Check /api/health.`);
-      } else {
-        setFaqs(data.faqs ?? []);
-      }
+      if (!res.ok) setError(data.error ?? 'Could not load your knowledge base.');
+      else setFaqs(data.faqs ?? []);
     } catch (e: any) {
-      setError(`Could not reach the server: ${e?.message ?? e}. Is App Bridge loaded? Check the browser console.`);
+      setError(e?.message ?? 'Could not reach the server.');
     } finally {
       setLoading(false);
     }
@@ -56,13 +43,10 @@ export default function FaqsPage() {
         body: JSON.stringify({ question: q, answer: a }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(`Save failed (${res.status}): ${data.error ?? 'unknown'}. Check /api/health.`);
-      } else {
-        setQ(''); setA(''); await load();
-      }
+      if (!res.ok) setError(data.error ?? 'Could not save.');
+      else { setQ(''); setA(''); await load(); }
     } catch (e: any) {
-      setError(`Could not reach the server: ${e?.message ?? e}.`);
+      setError(e?.message ?? 'Could not reach the server.');
     } finally {
       setSaving(false);
     }
@@ -71,54 +55,92 @@ export default function FaqsPage() {
   async function remove(id: number) {
     setError(null);
     try {
-      await apiFetch(`/api/faqs?id=${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/faqs?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(d.error ?? 'Could not delete.');
+        return;
+      }
       await load();
     } catch (e: any) {
-      setError(`Delete failed: ${e?.message ?? e}`);
+      setError(e?.message ?? 'Could not delete.');
     }
   }
 
   return (
-    <main style={{ padding: 24 }}>
-      <div style={card}>
-        <h2 style={{ marginTop: 0 }}>Add a Q&amp;A</h2>
-        {error && <div style={errBox}>{error}</div>}
-        <input style={input} placeholder="Question e.g. What is your return policy?"
-          value={q} onChange={(e) => setQ(e.target.value)} />
-        <textarea style={{ ...input, minHeight: 80, resize: 'vertical' }}
-          placeholder="Answer e.g. Returns accepted within 30 days, unused, with receipt."
-          value={a} onChange={(e) => setA(e.target.value)} />
-        <button onClick={add} disabled={saving}
-          style={{ background: '#1a1a1a', color: '#fff', border: 'none',
-            padding: '10px 18px', borderRadius: 8, fontWeight: 600,
-            cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-          {saving ? 'Saving…' : 'Add'}
-        </button>
-      </div>
-
-      <div style={card}>
-        <h2 style={{ marginTop: 0 }}>Your knowledge base</h2>
-        {loading ? (
-          <p style={{ color: '#616161' }}>Loading…</p>
-        ) : faqs.length === 0 ? (
-          <p style={{ color: '#616161' }}>No entries yet. Add your first above.</p>
-        ) : (
-          faqs.map((f) => (
-            <div key={f.id} style={{ borderTop: '1px solid #f0f0f0', padding: '12px 0',
-              display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-              <div>
-                <div style={{ fontWeight: 600 }}>{f.question}</div>
-                <div style={{ color: '#616161', fontSize: 14 }}>{f.answer}</div>
-              </div>
-              <button onClick={() => remove(f.id)}
-                style={{ background: 'none', border: '1px solid #c9cccf', borderRadius: 6,
-                  padding: '4px 10px', cursor: 'pointer', height: 'fit-content' }}>
-                Delete
-              </button>
-            </div>
-          ))
+    <Page
+      title="Knowledge base"
+      subtitle="Answers the assistant replies with. Everything else it marks unresolved."
+    >
+      <Layout>
+        {error && (
+          <Layout.Section>
+            <Banner tone="critical" onDismiss={() => setError(null)}>
+              <p>{error}</p>
+            </Banner>
+          </Layout.Section>
         )}
-      </div>
-    </main>
+
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">Add a question</Text>
+              <TextField
+                label="Question"
+                value={q}
+                onChange={setQ}
+                autoComplete="off"
+                placeholder="What is your return policy?"
+              />
+              <TextField
+                label="Answer"
+                value={a}
+                onChange={setA}
+                autoComplete="off"
+                multiline={3}
+                placeholder="Returns accepted within 30 days, unused, with receipt."
+              />
+              <InlineStack>
+                <Button variant="primary" onClick={add} loading={saving} disabled={!q.trim() || !a.trim()}>
+                  Add
+                </Button>
+              </InlineStack>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        <Layout.Section>
+          <Card padding="0">
+            {loading ? (
+              <div style={{ padding: 16 }}><SkeletonBodyText lines={4} /></div>
+            ) : faqs.length === 0 ? (
+              <EmptyState
+                heading="No answers saved yet"
+                image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+              >
+                <p>Add your first question above. The assistant only answers from what you save here.</p>
+              </EmptyState>
+            ) : (
+              <ResourceList
+                resourceName={{ singular: 'answer', plural: 'answers' }}
+                items={faqs}
+                renderItem={(f) => (
+                  <ResourceItem
+                    id={String(f.id)}
+                    onClick={() => {}}
+                    shortcutActions={[{ content: 'Delete', onAction: () => remove(f.id) }]}
+                  >
+                    <BlockStack gap="100">
+                      <Text as="h3" variant="bodyMd" fontWeight="semibold">{f.question}</Text>
+                      <Text as="p" tone="subdued">{f.answer}</Text>
+                    </BlockStack>
+                  </ResourceItem>
+                )}
+              />
+            )}
+          </Card>
+        </Layout.Section>
+      </Layout>
+    </Page>
   );
 }

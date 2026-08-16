@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
+    "@shopify/polaris": "^13.9.5",
+    "@shopify/polaris-icons": "^9.3.1",
     "@shopify/shopify-api": "^11.6.0",
     "drizzle-orm": "^0.36.4",
     "next": "^15.1.6",

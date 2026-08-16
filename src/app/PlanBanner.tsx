@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Card, InlineStack, BlockStack, Text, Button, ProgressBar, Box } from '@shopify/polaris';
 import { apiFetch } from './lib-client';
 
 type PlanInfo = {
@@ -21,59 +22,36 @@ export default function PlanBanner() {
         const res = await apiFetch('/api/plan');
         if (res.ok) setInfo(await res.json());
       } catch {
-        /* ignore — banner is non-critical */
+        /* banner is non-critical */
       }
     })();
   }, []);
 
   if (!info) return null;
 
-  const isFree = info.plan !== 'pro';
-  const usageText =
-    info.monthlyQueryLimit === null
-      ? `${info.used} answers this month · unlimited`
-      : `${info.used} / ${info.monthlyQueryLimit} answers used this month`;
+  const limited = info.monthlyQueryLimit !== null;
+  const pct = limited ? Math.min(100, (info.used / info.monthlyQueryLimit!) * 100) : 0;
+  const usageText = limited
+    ? `${info.used} of ${info.monthlyQueryLimit} answers used this month`
+    : `${info.used} answers this month · unlimited`;
 
   return (
-    <div
-      style={{
-        background: '#fff',
-        border: '1px solid #e1e3e5',
-        borderRadius: 12,
-        padding: 16,
-        maxWidth: 720,
-        margin: '0 auto 16px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 12,
-        flexWrap: 'wrap',
-      }}
-    >
-      <div>
-        <div style={{ fontWeight: 600 }}>
-          {info.planName} plan{' '}
-          <span style={{ color: '#616161', fontWeight: 400 }}>· {info.price}</span>
-        </div>
-        <div style={{ color: '#616161', fontSize: 13 }}>{usageText}</div>
-      </div>
-      {isFree && (
-        <a
-          href={info.upgradeUrl}
-          target="_top"
-          style={{
-            background: '#1a1a1a',
-            color: '#fff',
-            padding: '8px 16px',
-            borderRadius: 8,
-            textDecoration: 'none',
-            fontWeight: 600,
-            fontSize: 14,
-          }}
-        >
-          Upgrade →
-        </a>
-      )}
-    </div>
+    <Card>
+      <InlineStack align="space-between" blockAlign="center" gap="400" wrap>
+        <BlockStack gap="150">
+          <InlineStack gap="200" blockAlign="baseline">
+            <Text as="h2" variant="headingSm">{info.planName} plan</Text>
+            <Text as="span" tone="subdued">{info.price}</Text>
+          </InlineStack>
+          <Text as="p" tone="subdued" variant="bodySm">{usageText}</Text>
+          {limited && (
+            <Box width="220px">
+              <ProgressBar progress={pct} size="small" tone={pct >= 90 ? 'critical' : 'primary'} />
+            </Box>
+          )}
+        </BlockStack>
+        {info.plan !== 'pro' && <Button variant="primary" url="/plans">View plans</Button>}
+      </InlineStack>
+    </Card>
   );
 }
