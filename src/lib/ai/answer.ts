@@ -199,3 +199,39 @@ export async function assessDamagePhotos(
     return null;
   }
 }
+
+const DRAFT_PROMPT = `You are helping a shop owner write an answer for their support knowledge base.
+
+A customer asked something the assistant could not answer. Draft a reply the
+owner can edit and save.
+
+Match the tone and format of the existing entries you are given.
+
+CRITICAL: you do not know this shop's policies. Never state a figure, deadline,
+price, shipping time, or condition unless it appears in the existing entries.
+Where a specific detail is needed and you do not have it, write a placeholder in
+square brackets for the owner to fill in, like [number of days] or [your address].
+A draft full of accurate placeholders is useful; a confident guess is harmful,
+because the owner may save it and the assistant will repeat it to customers.
+
+Write only the answer itself — no greeting, no sign-off, no preamble.`;
+
+/**
+ * Draft a knowledge base answer for a question the assistant could not handle.
+ *
+ * Returns null when no provider is available; callers should let the merchant
+ * write their own answer rather than blocking on this.
+ */
+export async function draftAnswer(
+  question: string,
+  faqs: Array<{ question: string; answer: string }>
+): Promise<string | null> {
+  const examples = faqs.length
+    ? faqs.slice(0, 10).map((f) => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n')
+    : '(the knowledge base is empty — you have no policies to draw on at all)';
+
+  return runLLM(
+    DRAFT_PROMPT,
+    `EXISTING ENTRIES:\n${examples}\n\nCUSTOMER QUESTION TO ANSWER:\n${question}`
+  );
+}

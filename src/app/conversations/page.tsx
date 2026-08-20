@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Page, Layout, Card, BlockStack, InlineStack, Text, Badge, Banner, Button,
   IndexTable, useIndexResourceState, EmptyState, SkeletonBodyText, Filters,
-  ChoiceList, Pagination, Box, Link,
+  ChoiceList, Pagination, Box, Link, Modal, TextField, Spinner,
 } from '@shopify/polaris';
 import { apiFetch } from '../lib-client';
 
@@ -14,6 +14,7 @@ type Conversation = {
   answer: string | null;
   kind: string;
   resolved: boolean;
+  handled: boolean;
   createdAt: string;
 };
 
@@ -39,6 +40,13 @@ export default function ConversationsPage() {
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
   const [total, setTotal] = useState(0);
+
+  // Draft-answer console: opens on a question the assistant could not handle.
+  const [draftFor, setDraftFor] = useState<Conversation | null>(null);
+  const [draftText, setDraftText] = useState('');
+  const [drafting, setDrafting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
 
   const [status, setStatus] = useState<string[]>([]);
   const [kind, setKind] = useState<string[]>([]);
@@ -78,6 +86,53 @@ export default function ConversationsPage() {
   // Any filter change invalidates the current page number.
   useEffect(() => { setPage(0); }, [status, kind, query]);
 
+  async function openDraft(row: Conversation) {
+    setDraftFor(row);
+    setDraftText('');
+    setDraftError(null);
+    setDrafting(true);
+    try {
+      const res = await apiFetch('/api/conversations/draft', {
+        method: 'POST',
+        body: JSON.stringify({ question: row.question }),
+      });
+      const d = await res.json().catch(() => ({}));
+      // A missing draft is not a dead end — the merchant can still type one.
+      if (!res.ok) setDraftError(d.error ?? 'Could not draft an answer.');
+      else setDraftText(d.draft ?? '');
+    } catch (e: any) {
+      setDraftError(e?.message ?? 'Could not draft an answer.');
+    } finally {
+      setDrafting(false);
+    }
+  }
+
+  async function saveDraft() {
+    if (!draftFor || !draftText.trim()) return;
+    setSavingDraft(true);
+    setDraftError(null);
+    try {
+      const res = await apiFetch('/api/conversations/draft', {
+        method: 'PUT',
+        body: JSON.stringify({
+          logId: draftFor.id,
+          question: draftFor.question,
+          answer: draftText,
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) setDraftError(d.error ?? 'Could not save.');
+      else {
+        setDraftFor(null);
+        await load();
+      }
+    } catch (e: any) {
+      setDraftError(e?.message ?? 'Could not save.');
+    } finally {
+      setSavingDraft(false);
+    }
+  }
+
   const resourceName = { singular: 'conversation', plural: 'conversations' };
   const { selectedResources, allResourcesSelected, handleSelectionChange } =
     useIndexResourceState(rows.map((r) => ({ ...r, id: String(r.id) })));
@@ -91,6 +146,7 @@ export default function ConversationsPage() {
           title="Status"
           titleHidden
           choices={[
+            { label: 'Needs an answer', value: 'todo' },
             { label: 'Answered', value: 'resolved' },
             { label: 'Not answered', value: 'unresolved' },
           ]}
@@ -123,7 +179,8 @@ export default function ConversationsPage() {
   const appliedFilters = [
     ...(status[0] ? [{
       key: 'status',
-      label: status[0] === 'resolved' ? 'Answered' : 'Not answered',
+      label: status[0] === 'resolved' ? 'Answered'
+        : status[0] === 'todo' ? 'Needs an answer' : 'Not answered',
       onRemove: () => setStatus([]),
     }] : []),
     ...(kind[0] ? [{
@@ -192,6 +249,7 @@ export default function ConversationsPage() {
                   { title: 'Type' },
                   { title: 'Status' },
                   { title: 'When' },
+                  { title: '' },
                 ]}
               >
                 {rows.map((r, index) => (
@@ -212,10 +270,19 @@ export default function ConversationsPage() {
                     <IndexTable.Cell>
                       {r.resolved
                         ? <Badge tone="success">Answered</Badge>
-                        : <Badge tone="attention">Not answered</Badge>}
+                        : r.handled
+                        ? <Badge tone="info">Added to KB</Badge>
+                        : <Badge tone="attention">Needs an answer</Badge>}
                     </IndexTable.Cell>
                     <IndexTable.Cell>
                       <Text as="span" tone="subdued">{fmt(r.createdAt)}</Text>
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>
+                      {!r.resolved && !r.handled && (
+                        <Button size="slim" onClick={() => openDraft(r)}>
+                          Draft answer
+                        </Button>
+                      )}
                     </IndexTable.Cell>
                   </IndexTable.Row>
                 ))}
@@ -245,6 +312,55 @@ export default function ConversationsPage() {
           </Text>
         </Layout.Section>
       </Layout>
+
+      {draftFor && (
+        <Modal
+          open
+          onClose={() => setDraftFor(null)}
+          title="Answer this question"
+          primaryAction={{
+            content: 'Save to knowledge base',
+            onAction: saveDraft,
+            loading: savingDraft,
+            disabled: !draftText.trim() || drafting,
+          }}
+          secondaryActions={[{ content: 'Cancel', onAction: () => setDraftFor(null) }]}
+        >
+          <Modal.Section>
+            <BlockStack gap="400">
+              {draftError && (
+                <Banner tone="warning"><p>{draftError}</p></Banner>
+              )}
+
+              <BlockStack gap="100">
+                <Text as="h3" variant="headingSm">Customer asked</Text>
+                <Text as="p" tone="subdued">{draftFor.question}</Text>
+              </BlockStack>
+
+              {drafting ? (
+                <InlineStack gap="200" blockAlign="center">
+                  <Spinner size="small" />
+                  <Text as="p" tone="subdued">Drafting an answer…</Text>
+                </InlineStack>
+              ) : (
+                <TextField
+                  label="Answer"
+                  value={draftText}
+                  onChange={setDraftText}
+                  multiline={6}
+                  autoComplete="off"
+                  helpText="Check anything in [square brackets] — the AI leaves those for you because it does not know your policies."
+                />
+              )}
+
+              <Text as="p" tone="subdued" variant="bodySm">
+                Saving adds this to your knowledge base, so the assistant answers
+                it itself next time. It does not reply to the customer who asked.
+              </Text>
+            </BlockStack>
+          </Modal.Section>
+        </Modal>
+      )}
     </Page>
   );
 }

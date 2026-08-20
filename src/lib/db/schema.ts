@@ -126,6 +126,10 @@ export const queryLogs = pgTable(
     answer: text('answer'),
     kind: text('kind').notNull(), // 'order_status' | 'faq' | 'unresolved'
     resolved: boolean('resolved').default(false).notNull(),
+    // The merchant has acted on this gap — usually by saving an answer to the
+    // knowledge base. Distinct from `resolved`, which records whether the
+    // assistant managed to answer at the time.
+    handled: boolean('handled').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (t) => ({

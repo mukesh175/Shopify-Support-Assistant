@@ -31,6 +31,11 @@ export async function GET(req: NextRequest) {
     const filters: SQL[] = [eq(schema.queryLogs.shopDomain, shopDomain)];
     if (status === 'resolved') filters.push(eq(schema.queryLogs.resolved, true));
     if (status === 'unresolved') filters.push(eq(schema.queryLogs.resolved, false));
+    // The gaps still worth attention: unanswered and not yet acted on.
+    if (status === 'todo') {
+      filters.push(eq(schema.queryLogs.resolved, false));
+      filters.push(eq(schema.queryLogs.handled, false));
+    }
     if ((KINDS as readonly string[]).includes(kind)) {
       filters.push(eq(schema.queryLogs.kind, kind));
     }
@@ -49,6 +54,7 @@ export async function GET(req: NextRequest) {
         answer: schema.queryLogs.answer,
         kind: schema.queryLogs.kind,
         resolved: schema.queryLogs.resolved,
+        handled: schema.queryLogs.handled,
         createdAt: schema.queryLogs.createdAt,
       })
       .from(schema.queryLogs)
