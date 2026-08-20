@@ -30,6 +30,7 @@ export default function AppNav() {
     <ui-nav-menu>
       {/* App Bridge requires the first link to be the app root, marked rel="home". */}
       <Link href="/" rel="home">Home</Link>
+      <Link href="/conversations">Conversations</Link>
       <Link href="/faqs">Knowledge base</Link>
       <Link href="/analytics">Analytics</Link>
       <Link href="/plans">Plans</Link>

@@ -39,8 +39,8 @@ export default function Home() {
 
               <InlineStack gap="300">
                 <Button variant="primary" url="/faqs">Manage knowledge base</Button>
+                <Button url="/conversations">View conversations</Button>
                 <Button url="/analytics">View analytics</Button>
-                <Button url="/settings">Settings</Button>
               </InlineStack>
             </BlockStack>
           </Card>
