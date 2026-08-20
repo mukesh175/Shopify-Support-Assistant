@@ -17,10 +17,14 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const page = Math.max(0, parseInt(url.searchParams.get('page') ?? '0', 10) || 0);
     const status = url.searchParams.get('status') ?? '';
+    const type = url.searchParams.get('type') ?? '';
 
     const filters: SQL[] = [eq(schema.returnRequests.shopDomain, shopDomain)];
     if ((STATUSES as readonly string[]).includes(status)) {
       filters.push(eq(schema.returnRequests.status, status));
+    }
+    if (type === 'return' || type === 'cancel') {
+      filters.push(eq(schema.returnRequests.type, type));
     }
     const where = and(...filters);
 
@@ -28,6 +32,7 @@ export async function GET(req: NextRequest) {
       .select({
         id: schema.returnRequests.id,
         orderName: schema.returnRequests.orderName,
+        type: schema.returnRequests.type,
         email: schema.returnRequests.email,
         items: schema.returnRequests.items,
         reason: schema.returnRequests.reason,

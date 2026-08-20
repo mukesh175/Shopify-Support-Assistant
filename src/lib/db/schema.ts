@@ -67,7 +67,12 @@ export const returnRequests = pgTable(
     shopDomain: text('shop_domain').notNull(),
     orderName: text('order_name').notNull(),
     email: text('email').notNull(),
-    // JSON array of { lineItemId, title, variantTitle, quantity }
+    // return | cancel — what the shopper is asking the merchant to do.
+    // Defaults to return so rows written before cancellations existed are
+    // still classified correctly.
+    type: text('type').default('return').notNull(),
+    // JSON array of { lineItemId, title, variantTitle, quantity }.
+    // Empty for cancellations, which concern the whole order.
     items: text('items').notNull(),
     reason: text('reason').notNull(),
     note: text('note'),

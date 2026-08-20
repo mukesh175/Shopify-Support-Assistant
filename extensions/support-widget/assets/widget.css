@@ -127,6 +127,10 @@
   flex: 1; overflow-y: auto; padding: 16px;
   display: flex; flex-direction: column; gap: 10px; background: #fff;
 }
+/* The transcript is a scrolling column, so its rows must keep their own height
+   rather than being squeezed to fit — otherwise buttons and controls near the
+   bottom get their text clipped. */
+.sa-body > * { flex-shrink: 0; }
 
 /* Welcome panel — stands in for the first bot message. */
 .sa-welcome { padding: 8px 2px 2px; }
@@ -346,3 +350,10 @@
   padding: 5px 6px; font-size: 13px; background: #fff !important; flex-shrink: 0;
 }
 .sa-fc-err { font-size: 13px; color: #8a2c0d; }
+
+/* Reorder call to action — takes the shop's accent, set inline. */
+.sa-cart-btn {
+  align-self: flex-start; border: none; color: #fff;
+  padding: 10px 16px; border-radius: 12px; font-size: 14px;
+  font-weight: 600; cursor: pointer;
+}

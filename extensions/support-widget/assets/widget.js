@@ -74,6 +74,8 @@
       '<button data-q="product">Find a product</button>' +
       '<button data-q="order">Track my order</button>' +
       '<button data-q="return">Return an item</button>' +
+      '<button data-q="cancel">Cancel an order</button>' +
+      '<button data-q="reorder">Buy again</button>' +
       '<button data-q="wa" class="sa-wa-quick" style="display:none">WhatsApp us</button>' +
     '</div>' +
     '<div class="sa-inputbar">' +
@@ -281,6 +283,8 @@
       var q = b.dataset.q;
       if (q === 'order') { showOrderChoice(); }
       else if (q === 'return') { showReturnStart(); }
+      else if (q === 'cancel') { showCancelStart(); }
+      else if (q === 'reorder') { showReorderStart(); }
       else if (q === 'wa') { if (waReady()) openWhatsApp('Hi, I need help.'); }
       else if (q === 'product') { mode = 'product'; textInput.placeholder = 'What are you looking for?'; bot('What are you looking for? e.g. "black snowboard" or "gift under $500".'); textInput.focus(); }
       else { mode = 'faq'; textInput.placeholder = 'Ask anything…'; textInput.focus(); }
@@ -576,6 +580,162 @@
     if (sug) sug.remove();
     body.appendChild(card);
     body.scrollTop = body.scrollHeight;
+  }
+
+  /* ---- Cancel and buy-again ----------------------------------------------
+   * Both start from the same order lookup. Cancelling is recorded for the
+   * merchant; buying again needs nothing from them and goes straight to a cart.
+   */
+  var ACTION_URL = PROXY.replace(/\/query$/, '/order-action');
+
+  function postAction(payload) {
+    var typing = bot('', true);
+    return fetch(ACTION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) { typing.remove(); return data; })
+      .catch(function () {
+        typing.remove();
+        bot('Sorry, I could not reach the store right now. Please try again.');
+        return null;
+      });
+  }
+
+  function orderLookupCard(opts) {
+    formCard({
+      icon: opts.icon,
+      title: opts.title,
+      subtitle: opts.subtitle,
+      cta: opts.cta,
+      fields: [
+        { name: 'orderName', placeholder: 'Order number' },
+        { name: 'email', type: 'email', placeholder: 'Email used at checkout', value: lastEmail }
+      ],
+      onSubmit: function (v) {
+        lastEmail = v.email;
+        user(opts.userLine(v.orderName));
+        opts.onFound(v);
+      }
+    });
+  }
+
+  function showCancelStart() {
+    bot('I can ask the store to cancel an order. Which one?');
+    orderLookupCard({
+      icon: '🚫',
+      title: 'Cancel an order',
+      subtitle: 'Find your order first.',
+      cta: 'Find order',
+      userLine: function (n) { return 'Cancel order ' + n; },
+      onFound: function (v) {
+        postAction({ action: 'cancel_lookup', orderName: v.orderName, email: v.email })
+          .then(function (data) {
+            if (!data) return;
+            if (data.kind !== 'cancel_confirm') { bot(data.text || 'Sorry, something went wrong.'); showSuggestions(); return; }
+            bot(data.text);
+            showCancelReason(data, v.orderName, v.email);
+          });
+      }
+    });
+  }
+
+  function showCancelReason(data, orderName, email) {
+    panel.classList.add('sa-forming');
+    var card = el('form', 'sa-formcard');
+
+    var head = el('div', 'sa-fc-head');
+    head.appendChild(el('div', 'sa-fc-icon', '🚫'));
+    var htext = el('div', 'sa-fc-htext');
+    htext.appendChild(el('div', 'sa-fc-title', 'Cancel ' + data.orderName));
+    htext.appendChild(el('div', 'sa-fc-sub', 'The store will confirm by email.'));
+    head.appendChild(htext);
+    card.appendChild(head);
+
+    var reason = el('select', 'sa-fc-input');
+    var ph = el('option', '', 'Why are you cancelling?');
+    ph.value = '';
+    reason.appendChild(ph);
+    (data.reasons || []).forEach(function (r) {
+      var o = el('option', '', r);
+      o.value = r;
+      reason.appendChild(o);
+    });
+    card.appendChild(reason);
+
+    var note = el('input', 'sa-fc-input');
+    note.type = 'text';
+    note.placeholder = 'Anything else we should know? (optional)';
+    card.appendChild(note);
+
+    var err = el('div', 'sa-fc-err');
+    err.style.display = 'none';
+    card.appendChild(err);
+
+    var actions = el('div', 'sa-fc-actions');
+    var cancelBtn = el('button', 'sa-fc-cancel', 'Never mind');
+    cancelBtn.type = 'button';
+    var submit = el('button', 'sa-fc-submit', 'Request cancellation');
+    submit.type = 'submit';
+    submit.style.background = ACCENT;
+    submit.style.color = TEXTCOLOR;
+    actions.appendChild(cancelBtn);
+    actions.appendChild(submit);
+    card.appendChild(actions);
+
+    function done() { panel.classList.remove('sa-forming'); card.remove(); }
+    cancelBtn.addEventListener('click', function () { done(); showSuggestions(); });
+
+    card.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!reason.value) { err.textContent = 'Choose a reason.'; err.style.display = ''; return; }
+      done();
+      user(reason.value);
+      postAction({
+        action: 'cancel_submit',
+        orderName: orderName,
+        email: email,
+        reason: reason.value,
+        note: note.value,
+      }).then(function (res) {
+        if (!res) return;
+        bot(res.text || 'Your request has been sent.');
+        showSuggestions();
+      });
+    });
+
+    var sug = body.querySelector('.sa-suggests');
+    if (sug) sug.remove();
+    body.appendChild(card);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function showReorderStart() {
+    bot('I can put a past order back in your cart. Which one?');
+    orderLookupCard({
+      icon: '🛒',
+      title: 'Buy again',
+      subtitle: 'Find the order you want to repeat.',
+      cta: 'Find order',
+      userLine: function (n) { return 'Buy order ' + n + ' again'; },
+      onFound: function (v) {
+        postAction({ action: 'reorder', orderName: v.orderName, email: v.email })
+          .then(function (data) {
+            if (!data) return;
+            bot(data.text || 'Sorry, something went wrong.');
+            if (data.kind === 'reorder' && data.cartUrl) {
+              var go = el('button', 'sa-cart-btn', '🛒 Go to cart');
+              go.style.background = ACCENT;
+              go.style.color = TEXTCOLOR;
+              go.addEventListener('click', function () { window.top.location.href = data.cartUrl; });
+              body.appendChild(go);
+            }
+            showSuggestions();
+          });
+      }
+    });
   }
 
   function showOrderChoice() {

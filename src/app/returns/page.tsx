@@ -12,6 +12,7 @@ type ReturnItem = { lineItemId: string; title: string; variantTitle: string | nu
 type ReturnRequest = {
   id: number;
   orderName: string;
+  type: string;
   email: string;
   items: ReturnItem[];
   reason: string;
@@ -104,7 +105,7 @@ export default function ReturnsPage() {
 
   return (
     <Page
-      title="Returns"
+      title="Requests"
       subtitle={pending ? `${pending} awaiting your decision` : undefined}
     >
       <Layout>
@@ -129,17 +130,17 @@ export default function ReturnsPage() {
               <Box padding="400"><SkeletonBodyText lines={6} /></Box>
             ) : rows.length === 0 ? (
               <EmptyState
-                heading="No return requests"
+                heading="No requests yet"
                 image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
               >
                 <p>
-                  When a shopper asks to return something through the assistant,
-                  the request appears here for you to review.
+                  When a shopper asks to return an item or cancel an order
+                  through the assistant, it appears here for you to review.
                 </p>
               </EmptyState>
             ) : (
               <ResourceList
-                resourceName={{ singular: 'return request', plural: 'return requests' }}
+                resourceName={{ singular: 'request', plural: 'requests' }}
                 items={rows}
                 idForItem={(r) => String(r.id)}
                 renderItem={(r) => (
@@ -149,6 +150,9 @@ export default function ReturnsPage() {
                         <BlockStack gap="100">
                           <InlineStack gap="200" blockAlign="center">
                             <Text as="h3" variant="bodyMd" fontWeight="semibold">{r.orderName}</Text>
+                            <Badge tone={r.type === 'cancel' ? 'warning' : 'new'}>
+                              {r.type === 'cancel' ? 'Cancellation' : 'Return'}
+                            </Badge>
                             <Badge tone={STATUS_TONE[r.status] ?? 'attention'}>
                               {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
                             </Badge>
@@ -188,12 +192,16 @@ export default function ReturnsPage() {
                       </InlineStack>
 
                       <BlockStack gap="100">
-                        {r.items.map((it) => (
-                          <Text as="p" variant="bodySm" key={it.lineItemId}>
-                            {it.quantity}× {it.title}
-                            {it.variantTitle ? ` — ${it.variantTitle}` : ''}
-                          </Text>
-                        ))}
+                        {r.items.length ? (
+                          r.items.map((it) => (
+                            <Text as="p" variant="bodySm" key={it.lineItemId}>
+                              {it.quantity}× {it.title}
+                              {it.variantTitle ? ` — ${it.variantTitle}` : ''}
+                            </Text>
+                          ))
+                        ) : (
+                          <Text as="p" variant="bodySm" tone="subdued">Whole order</Text>
+                        )}
                       </BlockStack>
 
                       <Text as="p" variant="bodySm" tone="subdued">
@@ -222,8 +230,8 @@ export default function ReturnsPage() {
 
         <Layout.Section>
           <Text as="p" tone="subdued" variant="bodySm">
-            Approving here records your decision — it does not create the return
-            in Shopify or refund anything. Process the return in your Shopify
+            Approving here records your decision — it does not change anything
+            in Shopify. Carry out the return or cancellation in your Shopify
             admin as usual, then mark it completed.
           </Text>
         </Layout.Section>

@@ -205,6 +205,9 @@ export async function lookupOrder(
 
 export type ReturnableItem = {
   lineItemId: string;
+  // Numeric variant id, for building a cart permalink. Null for items whose
+  // variant no longer exists, which cannot be reordered.
+  variantId: string | null;
   title: string;
   variantTitle: string | null;
   quantity: number;
@@ -237,6 +240,7 @@ const ITEMS_QUERY = /* GraphQL */ `
                 quantity
                 variantTitle
                 image { url }
+                variant { id }
               }
             }
           }
@@ -286,6 +290,7 @@ export async function lookupOrderItems(
 
   const items: ReturnableItem[] = (node.lineItems?.edges ?? []).map((e: any) => ({
     lineItemId: e.node.id,
+    variantId: (e.node.variant?.id ?? '').split('/').pop() || null,
     title: e.node.title,
     variantTitle: e.node.variantTitle ?? null,
     quantity: e.node.quantity,
