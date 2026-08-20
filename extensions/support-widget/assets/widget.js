@@ -73,6 +73,7 @@
       '<button data-q="faq">Ask a question</button>' +
       '<button data-q="product">Find a product</button>' +
       '<button data-q="order">Track my order</button>' +
+      '<button data-q="return">Return an item</button>' +
       '<button data-q="wa" class="sa-wa-quick" style="display:none">WhatsApp us</button>' +
     '</div>' +
     '<div class="sa-inputbar">' +
@@ -279,6 +280,7 @@
       b.blur();
       var q = b.dataset.q;
       if (q === 'order') { showOrderChoice(); }
+      else if (q === 'return') { showReturnStart(); }
       else if (q === 'wa') { if (waReady()) openWhatsApp('Hi, I need help.'); }
       else if (q === 'product') { mode = 'product'; textInput.placeholder = 'What are you looking for?'; bot('What are you looking for? e.g. "black snowboard" or "gift under $500".'); textInput.focus(); }
       else { mode = 'faq'; textInput.placeholder = 'Ask anything…'; textInput.focus(); }
@@ -413,6 +415,167 @@
         typing.remove(); bot('Sorry, I could not reach support right now.');
         if (waReady()) offerWhatsApp(payload.message || 'my question');
       });
+  }
+
+  /* ---- Returns ------------------------------------------------------------
+   * Two steps: find the order, then pick items and a reason. The request is
+   * recorded for the merchant to action — nothing is refunded automatically.
+   */
+  var RETURN_URL = PROXY.replace(/\/query$/, '/return');
+
+  function postReturn(payload) {
+    var typing = bot('', true);
+    return fetch(RETURN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) { typing.remove(); return data; })
+      .catch(function () {
+        typing.remove();
+        bot('Sorry, I could not reach the store right now. Please try again.');
+        return null;
+      });
+  }
+
+  function showReturnStart() {
+    bot('I can start a return for you. Which order is it for?');
+    formCard({
+      icon: '↩️',
+      title: 'Return an item',
+      subtitle: 'Find your order first.',
+      cta: 'Find order',
+      fields: [
+        { name: 'orderName', placeholder: 'Order number' },
+        { name: 'email', type: 'email', placeholder: 'Email used at checkout', value: lastEmail }
+      ],
+      onSubmit: function (v) {
+        lastEmail = v.email;
+        user('Return from order ' + v.orderName);
+        postReturn({ action: 'lookup', orderName: v.orderName, email: v.email })
+          .then(function (data) {
+            if (!data) return;
+            if (data.kind !== 'return_items') { bot(data.text || 'Sorry, something went wrong.'); showSuggestions(); return; }
+            bot(data.text);
+            showReturnItems(data, v.orderName, v.email);
+          });
+      }
+    });
+  }
+
+  function showReturnItems(data, orderName, email) {
+    panel.classList.add('sa-forming');
+    var card = el('form', 'sa-formcard');
+
+    var head = el('div', 'sa-fc-head');
+    head.appendChild(el('div', 'sa-fc-icon', '↩️'));
+    var htext = el('div', 'sa-fc-htext');
+    htext.appendChild(el('div', 'sa-fc-title', 'Choose items'));
+    htext.appendChild(el('div', 'sa-fc-sub', 'Select what you want to return from ' + data.orderName + '.'));
+    head.appendChild(htext);
+    card.appendChild(head);
+
+    var list = el('div', 'sa-ret-items');
+    data.items.forEach(function (it) {
+      var row = el('label', 'sa-ret-item');
+      var cb = el('input', 'sa-ret-check');
+      cb.type = 'checkbox';
+      cb.value = it.lineItemId;
+      row.appendChild(cb);
+
+      if (it.image) {
+        var img = el('span', 'sa-ret-img');
+        img.style.backgroundImage = 'url(' + it.image + ')';
+        row.appendChild(img);
+      }
+
+      var info = el('span', 'sa-ret-info');
+      info.appendChild(el('span', 'sa-ret-title', it.title));
+      if (it.variantTitle) info.appendChild(el('span', 'sa-ret-variant', it.variantTitle));
+      row.appendChild(info);
+
+      // Only offer a quantity picker where there is a choice to make.
+      if (it.quantity > 1) {
+        var qty = el('select', 'sa-ret-qty');
+        for (var n = 1; n <= it.quantity; n++) {
+          var opt = el('option', '', String(n));
+          opt.value = String(n);
+          qty.appendChild(opt);
+        }
+        qty.setAttribute('data-for', it.lineItemId);
+        row.appendChild(qty);
+      }
+
+      list.appendChild(row);
+    });
+    card.appendChild(list);
+
+    var reason = el('select', 'sa-fc-input');
+    var ph = el('option', '', 'Why are you returning this?');
+    ph.value = '';
+    reason.appendChild(ph);
+    (data.reasons || []).forEach(function (r) {
+      var o = el('option', '', r);
+      o.value = r;
+      reason.appendChild(o);
+    });
+    card.appendChild(reason);
+
+    var note = el('input', 'sa-fc-input');
+    note.type = 'text';
+    note.placeholder = 'Anything else we should know? (optional)';
+    card.appendChild(note);
+
+    var err = el('div', 'sa-fc-err');
+    err.style.display = 'none';
+    card.appendChild(err);
+
+    var actions = el('div', 'sa-fc-actions');
+    var cancel = el('button', 'sa-fc-cancel', 'Cancel');
+    cancel.type = 'button';
+    var submit = el('button', 'sa-fc-submit', 'Request return');
+    submit.type = 'submit';
+    submit.style.background = ACCENT;
+    submit.style.color = TEXTCOLOR;
+    actions.appendChild(cancel);
+    actions.appendChild(submit);
+    card.appendChild(actions);
+
+    function done() { panel.classList.remove('sa-forming'); card.remove(); }
+    cancel.addEventListener('click', function () { done(); showSuggestions(); });
+
+    card.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var chosen = [];
+      card.querySelectorAll('.sa-ret-check').forEach(function (cb) {
+        if (!cb.checked) return;
+        var sel = card.querySelector('.sa-ret-qty[data-for="' + cb.value + '"]');
+        chosen.push({ lineItemId: cb.value, quantity: sel ? Number(sel.value) : 1 });
+      });
+      if (!chosen.length) { err.textContent = 'Choose at least one item.'; err.style.display = ''; return; }
+      if (!reason.value) { err.textContent = 'Choose a reason for the return.'; err.style.display = ''; return; }
+
+      done();
+      user('Return ' + chosen.length + ' item' + (chosen.length > 1 ? 's' : ''));
+      postReturn({
+        action: 'submit',
+        orderName: orderName,
+        email: email,
+        items: chosen,
+        reason: reason.value,
+        note: note.value,
+      }).then(function (res) {
+        if (!res) return;
+        bot(res.text || 'Your request has been sent.');
+        showSuggestions();
+      });
+    });
+
+    var sug = body.querySelector('.sa-suggests');
+    if (sug) sug.remove();
+    body.appendChild(card);
+    body.scrollTop = body.scrollHeight;
   }
 
   function showOrderChoice() {

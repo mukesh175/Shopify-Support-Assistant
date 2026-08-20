@@ -53,6 +53,35 @@ export const faqs = pgTable(
 );
 
 /**
+ * Return requests raised by shoppers through the assistant.
+ *
+ * The app holds read-only Admin API scopes, so it records the request and the
+ * merchant carries it out in Shopify themselves. Keeping it here rather than
+ * creating a Shopify return means installed merchants never have to re-approve
+ * permissions, and nothing is actioned in their store without them.
+ */
+export const returnRequests = pgTable(
+  'return_requests',
+  {
+    id: serial('id').primaryKey(),
+    shopDomain: text('shop_domain').notNull(),
+    orderName: text('order_name').notNull(),
+    email: text('email').notNull(),
+    // JSON array of { lineItemId, title, variantTitle, quantity }
+    items: text('items').notNull(),
+    reason: text('reason').notNull(),
+    note: text('note'),
+    // pending | approved | declined | completed
+    status: text('status').default('pending').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    shopIdx: index('returns_shop_idx').on(t.shopDomain),
+  })
+);
+
+/**
  * Log every customer query so the merchant can see what's being asked and
  * whether the AI deflected it. This is the data that proves ROI ("we deflected
  * N tickets this month") — the thing you sell.

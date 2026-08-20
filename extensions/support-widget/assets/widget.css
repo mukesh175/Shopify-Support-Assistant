@@ -7,17 +7,37 @@
    Focus rings are re-applied below for keyboard users. */
 .sa-panel input,
 .sa-panel button,
+.sa-panel select,
+.sa-panel label,
 .sa-panel form {
   box-shadow: none !important;
-  -webkit-appearance: none; appearance: none;
   margin: 0; min-height: 0; max-width: none;
   letter-spacing: normal; text-transform: none;
   font-family: inherit;
 }
 .sa-panel input:focus,
 .sa-panel button:focus,
+.sa-panel select:focus,
 .sa-panel input:hover,
-.sa-panel button:hover { box-shadow: none !important; }
+.sa-panel button:hover,
+.sa-panel select:hover { box-shadow: none !important; }
+
+/* appearance:none is applied only to the text fields that need it stripped.
+   Applied to a <select> it hides the chosen option's text, and to a checkbox
+   it removes the tick entirely — both were broken by resetting them here. */
+.sa-panel input[type="text"],
+.sa-panel input[type="email"],
+.sa-panel input[type="tel"],
+.sa-panel input[type="search"] {
+  -webkit-appearance: none; appearance: none;
+}
+
+/* Themes pad bare inputs, which inflates a checkbox into a large square. */
+.sa-panel input[type="checkbox"] {
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  border-radius: 4px !important;
+}
 
 .sa-launcher {
   position: fixed; bottom: 20px;
@@ -132,6 +152,10 @@
   border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px;
   box-shadow: 0 1px 3px rgba(0,0,0,.04);
 }
+/* The card sits in a height-constrained column, so its rows would otherwise
+   shrink below their content — a select collapsed far enough to clip the
+   chosen option's text away entirely. */
+.sa-formcard > * { flex-shrink: 0; }
 .sa-fc-head { display: flex; gap: 11px; align-items: flex-start; }
 .sa-fc-icon {
   width: 38px; height: 38px; border-radius: 10px; background: #f4f5f7;
@@ -295,3 +319,30 @@
 .sa-oi-name { font-weight: 600; font-size: 14px; }
 .sa-oi-date { font-size: 12px; color: #8a8d91; margin-top: 1px; }
 .sa-oi-status { font-size: 12.5px; color: #2c6ecb; font-weight: 600; text-transform: capitalize; }
+
+/* Return item picker */
+.sa-ret-items { display: flex; flex-direction: column; gap: 6px; }
+.sa-ret-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px;
+  border: 1px solid #e3e5e8; border-radius: 10px; cursor: pointer;
+}
+.sa-ret-item:hover { background: #fafbfc; }
+.sa-ret-check {
+  width: 17px !important; height: 17px !important; flex-shrink: 0;
+  accent-color: #1a1a1a; cursor: pointer;
+}
+.sa-ret-img {
+  width: 34px; height: 34px; border-radius: 6px; background: #f0f1f3;
+  background-size: cover; background-position: center; flex-shrink: 0;
+}
+.sa-ret-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.sa-ret-title {
+  font-size: 13.5px; font-weight: 600; color: #1a1a1a;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sa-ret-variant { font-size: 12px; color: #6b7177; }
+.sa-ret-qty {
+  border: 1px solid #d4d7db !important; border-radius: 8px !important;
+  padding: 5px 6px; font-size: 13px; background: #fff !important; flex-shrink: 0;
+}
+.sa-fc-err { font-size: 13px; color: #8a2c0d; }

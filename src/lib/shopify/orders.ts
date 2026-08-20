@@ -202,3 +202,101 @@ export async function lookupOrder(
     timeline: buildTimeline(node),
   };
 }
+
+export type ReturnableItem = {
+  lineItemId: string;
+  title: string;
+  variantTitle: string | null;
+  quantity: number;
+  image: string | null;
+};
+
+export type OrderItems = {
+  found: boolean;
+  name?: string;
+  fulfillmentStatus?: string;
+  createdAt?: string;
+  items?: ReturnableItem[];
+};
+
+const ITEMS_QUERY = /* GraphQL */ `
+  query OrderItems($q: String!) {
+    orders(first: 1, query: $q) {
+      edges {
+        node {
+          name
+          email
+          customer { email }
+          createdAt
+          displayFulfillmentStatus
+          lineItems(first: 50) {
+            edges {
+              node {
+                id
+                title
+                quantity
+                variantTitle
+                image { url }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * Line items for one order, for building a return request.
+ *
+ * Matched on order name AND email, then the email is re-checked against the
+ * order before anything is returned — the search index is not a permission
+ * check, and this is reached from the unauthenticated storefront widget.
+ */
+export async function lookupOrderItems(
+  shopDomain: string,
+  accessToken: string,
+  orderName: string,
+  email: string
+): Promise<OrderItems> {
+  const cleanName = orderName.replace(/^#/, '').trim();
+  const wantEmail = email.trim().toLowerCase();
+  const q = `name:${cleanName} email:'${wantEmail}'`;
+
+  const res = await fetch(
+    `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken,
+      },
+      body: JSON.stringify({ query: ITEMS_QUERY, variables: { q } }),
+    }
+  );
+  if (!res.ok) return { found: false };
+
+  const data = await res.json();
+  const node = data?.data?.orders?.edges?.[0]?.node;
+  if (!node) return { found: false };
+
+  const orderEmail = (node.email || '').toLowerCase();
+  const custEmail = (node.customer?.email || '').toLowerCase();
+  if (orderEmail !== wantEmail && custEmail !== wantEmail) return { found: false };
+
+  const items: ReturnableItem[] = (node.lineItems?.edges ?? []).map((e: any) => ({
+    lineItemId: e.node.id,
+    title: e.node.title,
+    variantTitle: e.node.variantTitle ?? null,
+    quantity: e.node.quantity,
+    image: e.node.image?.url ?? null,
+  }));
+
+  return {
+    found: true,
+    name: node.name,
+    fulfillmentStatus: node.displayFulfillmentStatus,
+    createdAt: node.createdAt,
+    items,
+  };
+}
