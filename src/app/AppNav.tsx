@@ -31,6 +31,7 @@ export default function AppNav() {
       {/* App Bridge requires the first link to be the app root, marked rel="home". */}
       <Link href="/" rel="home">Home</Link>
       <Link href="/conversations">Conversations</Link>
+      <Link href="/emails">Emails</Link>
       <Link href="/returns">Requests</Link>
       <Link href="/faqs">Knowledge base</Link>
       <Link href="/analytics">Analytics</Link>

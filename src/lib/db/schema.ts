@@ -31,6 +31,10 @@ export const shops = pgTable('shops', {
   // rather than in theme settings so it is never rendered into the storefront
   // HTML of shops whose plan does not include handoff.
   whatsappNumber: text('whatsapp_number'),
+  // Random slug identifying this shop's inbound email address. The merchant
+  // forwards their support inbox to <slug>@<inbound domain>, and that is how
+  // an arriving email is matched back to a shop.
+  inboundToken: text('inbound_token'),
 });
 
 /**
@@ -109,6 +113,53 @@ export const requestPhotos = pgTable(
   },
   (t) => ({
     requestIdx: index('photos_request_idx').on(t.requestId),
+  })
+);
+
+/**
+ * One email conversation with a customer. Threads are keyed by the customer's
+ * address rather than by mail headers: shoppers routinely reply from a phone
+ * that drops References, or start a fresh mail about the same problem, and
+ * grouping by person matches how a merchant thinks about it.
+ */
+export const emailThreads = pgTable(
+  'email_threads',
+  {
+    id: serial('id').primaryKey(),
+    shopDomain: text('shop_domain').notNull(),
+    customerEmail: text('customer_email').notNull(),
+    subject: text('subject').notNull(),
+    // open | replied | closed
+    status: text('status').default('open').notNull(),
+    lastMessageAt: timestamp('last_message_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    shopIdx: index('email_threads_shop_idx').on(t.shopDomain),
+  })
+);
+
+/**
+ * Individual emails within a thread, inbound and outbound.
+ *
+ * A draft is held here too, with sentAt null, so a merchant can come back to a
+ * half-edited reply. Nothing is sent without the merchant pressing send.
+ */
+export const emailMessages = pgTable(
+  'email_messages',
+  {
+    id: serial('id').primaryKey(),
+    threadId: integer('thread_id').notNull(),
+    shopDomain: text('shop_domain').notNull(),
+    // inbound (from the customer) | outbound (from the merchant)
+    direction: text('direction').notNull(),
+    body: text('body').notNull(),
+    // Set on outbound messages once actually sent; null while still a draft.
+    sentAt: timestamp('sent_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    threadIdx: index('email_messages_thread_idx').on(t.threadId),
   })
 );
 
