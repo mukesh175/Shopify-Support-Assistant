@@ -468,6 +468,84 @@
     });
   }
 
+  /**
+   * Shrink a photo in the browser before it is uploaded. Phone cameras produce
+   * several megabytes; the store only needs enough detail to see the damage,
+   * and the server caps what it will accept anyway.
+   */
+  function compressImage(file, maxDim, quality) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onerror = function () { reject(new Error('read failed')); };
+      reader.onload = function () {
+        var img = new Image();
+        img.onerror = function () { reject(new Error('decode failed')); };
+        img.onload = function () {
+          var w = img.width, h = img.height;
+          if (w > h && w > maxDim) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else if (h >= w && h > maxDim) { w = Math.round(w * maxDim / h); h = maxDim; }
+          var canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  var MAX_PHOTOS = 2;
+
+  /** Photo picker shown when the shopper says something arrived damaged. */
+  function photoPicker(photos) {
+    var wrap = el('div', 'sa-photos');
+    var strip = el('div', 'sa-photo-strip');
+    var input = el('input', 'sa-photo-input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+
+    var addBtn = el('button', 'sa-photo-add', '📷 Add photo');
+    addBtn.type = 'button';
+    var hint = el('div', 'sa-photo-hint', 'Photos help the store see the damage. Up to ' + MAX_PHOTOS + '.');
+
+    function redraw() {
+      strip.innerHTML = '';
+      photos.forEach(function (src, i) {
+        var thumb = el('div', 'sa-photo-thumb');
+        thumb.style.backgroundImage = 'url(' + src + ')';
+        var rm = el('button', 'sa-photo-rm', '×');
+        rm.type = 'button';
+        rm.setAttribute('aria-label', 'Remove photo');
+        rm.addEventListener('click', function () { photos.splice(i, 1); redraw(); });
+        thumb.appendChild(rm);
+        strip.appendChild(thumb);
+      });
+      addBtn.style.display = photos.length >= MAX_PHOTOS ? 'none' : '';
+    }
+
+    addBtn.addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', function () {
+      var files = Array.prototype.slice.call(input.files || [], 0, MAX_PHOTOS - photos.length);
+      addBtn.disabled = true;
+      Promise.all(files.map(function (f) { return compressImage(f, 900, 0.65).catch(function () { return null; }); }))
+        .then(function (results) {
+          results.forEach(function (src) { if (src) photos.push(src); });
+          addBtn.disabled = false;
+          input.value = '';
+          redraw();
+        });
+    });
+
+    wrap.appendChild(strip);
+    wrap.appendChild(addBtn);
+    wrap.appendChild(hint);
+    wrap.appendChild(input);
+    redraw();
+    return wrap;
+  }
+
   function showReturnItems(data, orderName, email) {
     panel.classList.add('sa-forming');
     var card = el('form', 'sa-formcard');
@@ -526,6 +604,18 @@
     });
     card.appendChild(reason);
 
+    // Photos only make sense for damage, so the picker appears with that reason
+    // rather than asking every shopper for one.
+    var photos = [];
+    var picker = photoPicker(photos);
+    picker.style.display = 'none';
+    card.appendChild(picker);
+    reason.addEventListener('change', function () {
+      var wantsPhotos = /damag|defect|wrong item/i.test(reason.value);
+      picker.style.display = wantsPhotos ? '' : 'none';
+      if (!wantsPhotos) photos.length = 0;
+    });
+
     var note = el('input', 'sa-fc-input');
     note.type = 'text';
     note.placeholder = 'Anything else we should know? (optional)';
@@ -569,6 +659,7 @@
         items: chosen,
         reason: reason.value,
         note: note.value,
+        photos: photos,
       }).then(function (res) {
         if (!res) return;
         bot(res.text || 'Your request has been sent.');

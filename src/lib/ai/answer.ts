@@ -145,3 +145,57 @@ export async function answerFromKnowledge(
   // All providers failed/rate-limited -> graceful fallback, never a hard error.
   return { text: '__UNRESOLVED__', provider: 'none' };
 }
+
+const DAMAGE_PROMPT = `You are inspecting photos a customer sent with a return request.
+
+Describe only what is visibly wrong with the item: the type of damage, where it
+is, and how severe it looks. Be factual and brief — two or three sentences.
+
+If the photos show no visible damage, say so plainly. If they are too blurry,
+too dark, or do not show a product, say that instead.
+
+Never decide whether the return should be accepted, never mention refunds or
+policy, and never guess at anything you cannot see. You are describing evidence
+for a human to judge.`;
+
+/**
+ * Ask the vision model what the shopper's photos show.
+ *
+ * Gemini only — the Groq fallback model is text-only, so there is no second
+ * provider to try. Returns null when unavailable, and callers treat that as
+ * "no assessment" rather than a failure: the request must go through either way.
+ */
+export async function assessDamagePhotos(
+  photos: Array<{ mimeType: string; base64: string }>
+): Promise<string | null> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key || !photos.length) return null;
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: DAMAGE_PROMPT }] },
+          contents: [{
+            role: 'user',
+            parts: [
+              { text: 'What is wrong with this item?' },
+              ...photos.map((p) => ({
+                inlineData: { mimeType: p.mimeType, data: p.base64 },
+              })),
+            ],
+          }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 200 },
+        }),
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
+  } catch {
+    return null;
+  }
+}

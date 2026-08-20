@@ -76,6 +76,9 @@ export const returnRequests = pgTable(
     items: text('items').notNull(),
     reason: text('reason').notNull(),
     note: text('note'),
+    // What the vision model saw in the shopper's photos. Null when no photos
+    // were sent, or when the model was unavailable — the request still stands.
+    aiAssessment: text('ai_assessment'),
     // pending | approved | declined | completed
     status: text('status').default('pending').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -83,6 +86,29 @@ export const returnRequests = pgTable(
   },
   (t) => ({
     shopIdx: index('returns_shop_idx').on(t.shopDomain),
+  })
+);
+
+/**
+ * Photos a shopper attached to a request, as data URLs.
+ *
+ * Kept in their own table so listing requests never drags image bytes along,
+ * and so they can be purged or moved to object storage without touching the
+ * requests themselves. The widget downscales before uploading and the server
+ * caps both count and size, but this table will still grow faster than any
+ * other — worth moving to blob storage once volume justifies it.
+ */
+export const requestPhotos = pgTable(
+  'request_photos',
+  {
+    id: serial('id').primaryKey(),
+    requestId: integer('request_id').notNull(),
+    shopDomain: text('shop_domain').notNull(),
+    dataUrl: text('data_url').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => ({
+    requestIdx: index('photos_request_idx').on(t.requestId),
   })
 );
 

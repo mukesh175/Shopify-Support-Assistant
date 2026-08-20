@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAppProxySignature } from '@/lib/auth/appProxy';
 import { getShopToken } from '@/lib/auth/session';
 import { lookupOrderItems } from '@/lib/shopify/orders';
+import { assessDamagePhotos } from '@/lib/ai/answer';
 import { db, schema } from '@/lib/db';
 import { and, eq, gte, sql } from 'drizzle-orm';
 
@@ -19,6 +20,34 @@ const REASONS = [
 // A shopper who knows an order number and email could otherwise queue up
 // unlimited requests. Cap what one shop can take in a day.
 const MAX_PER_SHOP_PER_DAY = 200;
+
+// Photos are stored as data URLs in Postgres, so the caps matter. The widget
+// downscales before uploading; these are the backstop for anything that does
+// not, and for a caller bypassing the widget entirely.
+const MAX_PHOTOS = 2;
+const MAX_PHOTO_BYTES = 400 * 1024;
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+/**
+ * Accept only well-formed image data URLs within the size cap. Anything else
+ * is dropped silently rather than failing the request — a bad photo should
+ * never cost the shopper their return.
+ */
+function parsePhotos(raw: unknown): Array<{ mimeType: string; base64: string; dataUrl: string }> {
+  if (!Array.isArray(raw)) return [];
+  const out: Array<{ mimeType: string; base64: string; dataUrl: string }> = [];
+  for (const entry of raw.slice(0, MAX_PHOTOS)) {
+    if (typeof entry !== 'string') continue;
+    const m = /^data:(image\/[a-z+]+);base64,([A-Za-z0-9+/=]+)$/.exec(entry);
+    if (!m) continue;
+    const [, mimeType, base64] = m;
+    if (!ALLOWED_PHOTO_TYPES.includes(mimeType)) continue;
+    // base64 encodes 3 bytes per 4 chars
+    if ((base64.length * 3) / 4 > MAX_PHOTO_BYTES) continue;
+    out.push({ mimeType, base64, dataUrl: entry });
+  }
+  return out;
+}
 
 export async function POST(req: NextRequest) {
   const url = new URL(req.url);
@@ -118,18 +147,35 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    await db.insert(schema.returnRequests).values({
+    const photos = parsePhotos(body.photos);
+    // Never let a slow or failing vision call block the request being recorded.
+    const assessment = photos.length ? await assessDamagePhotos(photos) : null;
+
+    const [inserted] = await db.insert(schema.returnRequests).values({
       shopDomain,
       orderName: order.name ?? orderName,
       email: email.toLowerCase(),
       items: JSON.stringify(chosen),
       reason,
       note: note || null,
-    });
+      aiAssessment: assessment,
+    }).returning({ id: schema.returnRequests.id });
+
+    if (photos.length && inserted?.id) {
+      await db.insert(schema.requestPhotos).values(
+        photos.map((p) => ({
+          requestId: inserted.id,
+          shopDomain,
+          dataUrl: p.dataUrl,
+        }))
+      );
+    }
 
     return NextResponse.json({
       kind: 'return_submitted',
-      text: `Thanks — your return request for ${order.name} has been sent to the store. They'll be in touch by email with the next steps.`,
+      text: photos.length
+        ? `Thanks — your return request for ${order.name} has been sent to the store, along with your ${photos.length > 1 ? 'photos' : 'photo'}. They'll be in touch by email with the next steps.`
+        : `Thanks — your return request for ${order.name} has been sent to the store. They'll be in touch by email with the next steps.`,
     });
   }
 

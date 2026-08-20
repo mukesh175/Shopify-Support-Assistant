@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
         items: schema.returnRequests.items,
         reason: schema.returnRequests.reason,
         note: schema.returnRequests.note,
+        aiAssessment: schema.returnRequests.aiAssessment,
         status: schema.returnRequests.status,
         createdAt: schema.returnRequests.createdAt,
       })

@@ -17,6 +17,7 @@ type ReturnRequest = {
   items: ReturnItem[];
   reason: string;
   note: string | null;
+  aiAssessment: string | null;
   status: string;
   createdAt: string;
 };
@@ -54,6 +55,9 @@ export default function ReturnsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  // Photos are fetched per request, only when the merchant asks to see them.
+  const [photos, setPhotos] = useState<Record<number, string[]>>({});
+  const [photoBusy, setPhotoBusy] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,6 +102,20 @@ export default function ReturnsPage() {
       setError(e?.message ?? 'Could not update that request.');
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function loadPhotos(id: number) {
+    setPhotoBusy(id);
+    try {
+      const res = await apiFetch(`/api/returns/photos?requestId=${id}`);
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) setError(d.error ?? 'Could not load photos.');
+      else setPhotos((p) => ({ ...p, [id]: (d.photos ?? []).map((x: any) => x.dataUrl) }));
+    } catch (e: any) {
+      setError(e?.message ?? 'Could not load photos.');
+    } finally {
+      setPhotoBusy(null);
     }
   }
 
@@ -207,6 +225,56 @@ export default function ReturnsPage() {
                       <Text as="p" variant="bodySm" tone="subdued">
                         Reason: {r.reason}{r.note ? ` — “${r.note}”` : ''}
                       </Text>
+
+                      {r.aiAssessment && (
+                        <Box
+                          background="bg-surface-secondary"
+                          padding="300"
+                          borderRadius="200"
+                        >
+                          <BlockStack gap="100">
+                            <Text as="h4" variant="bodySm" fontWeight="semibold">
+                              What the photos show
+                            </Text>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              {r.aiAssessment}
+                            </Text>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              Described automatically from the shopper&apos;s photos — check them yourself before deciding.
+                            </Text>
+                          </BlockStack>
+                        </Box>
+                      )}
+
+                      {photos[r.id] ? (
+                        <InlineStack gap="200" wrap>
+                          {photos[r.id].length === 0 ? (
+                            <Text as="p" variant="bodySm" tone="subdued">No photos attached.</Text>
+                          ) : photos[r.id].map((src, i) => (
+                            <a key={i} href={src} target="_blank" rel="noopener noreferrer">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={src}
+                                alt={`Photo ${i + 1} from the shopper`}
+                                style={{
+                                  width: 88, height: 88, objectFit: 'cover',
+                                  borderRadius: 8, border: '1px solid #e3e5e8', display: 'block',
+                                }}
+                              />
+                            </a>
+                          ))}
+                        </InlineStack>
+                      ) : r.aiAssessment ? (
+                        <InlineStack>
+                          <Button
+                            size="slim"
+                            loading={photoBusy === r.id}
+                            onClick={() => loadPhotos(r.id)}
+                          >
+                            View photos
+                          </Button>
+                        </InlineStack>
+                      ) : null}
                     </BlockStack>
                   </ResourceItem>
                 )}
