@@ -4,11 +4,16 @@ import {
   Page, Layout, Card, BlockStack, InlineStack, Text, Button, List,
 } from '@shopify/polaris';
 import PlanBanner from './PlanBanner';
+import ReviewPrompt from './ReviewPrompt';
 
 export default function Home() {
   return (
     <Page title="Zappy">
       <Layout>
+        <Layout.Section>
+          <ReviewPrompt />
+        </Layout.Section>
+
         <Layout.Section>
           <PlanBanner />
         </Layout.Section>

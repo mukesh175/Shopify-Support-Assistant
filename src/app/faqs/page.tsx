@@ -16,6 +16,8 @@ export default function FaqsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [addingStarters, setAddingStarters] = useState(false);
+  const [starterNote, setStarterNote] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -52,6 +54,29 @@ export default function FaqsPage() {
     }
   }
 
+  async function addStarters() {
+    setAddingStarters(true);
+    setError(null);
+    setStarterNote(null);
+    try {
+      const res = await apiFetch('/api/faqs/starters', { method: 'POST' });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) setError(d.error ?? 'Could not add the starter answers.');
+      else {
+        // Say so when the plan capped how many went in, rather than silently
+        // adding fewer than the merchant was shown.
+        if (d.added < d.total) {
+          setStarterNote(`Added ${d.added} of ${d.total} — your plan caps the knowledge base. Upgrade to add the rest.`);
+        }
+        await load();
+      }
+    } catch (e: any) {
+      setError(e?.message ?? 'Could not reach the server.');
+    } finally {
+      setAddingStarters(false);
+    }
+  }
+
   async function remove(id: number) {
     setError(null);
     try {
@@ -77,6 +102,34 @@ export default function FaqsPage() {
           <Layout.Section>
             <Banner tone="critical" onDismiss={() => setError(null)}>
               <p>{error}</p>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {starterNote && (
+          <Layout.Section>
+            <Banner tone="info" onDismiss={() => setStarterNote(null)}>
+              <p>{starterNote}</p>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {!loading && faqs.length === 0 && (
+          <Layout.Section>
+            <Banner tone="info">
+              <BlockStack gap="300">
+                <Text as="p">
+                  The assistant can only answer from what is saved here, so an
+                  empty knowledge base means it answers nothing. Start with the
+                  questions shoppers ask most, then edit them to match your shop
+                  — each one has blanks where your own policy goes.
+                </Text>
+                <InlineStack>
+                  <Button onClick={addStarters} loading={addingStarters}>
+                    Add starter questions
+                  </Button>
+                </InlineStack>
+              </BlockStack>
             </Banner>
           </Layout.Section>
         )}
