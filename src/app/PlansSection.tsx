@@ -29,15 +29,33 @@ type PlanCard = {
 const PLAN_CARDS: PlanCard[] = [
   {
     id: 'free', name: 'Free', price: '$0',
-    features: ['100 answers/mo', 'Order tracking', '5 saved Q&As', '5 recommendations/mo', 'English only'],
+    features: [
+      '100 answers/mo',
+      'Answers in any language',
+      'Order tracking & returns',
+      '20 saved Q&As',
+      'Product recommendations',
+    ],
   },
   {
-    id: 'starter', name: 'Starter', price: '$5', cadence: '/mo', popular: true,
-    features: ['500 answers/mo', 'WhatsApp handoff', '50 saved Q&As', '100 recommendations/mo', 'All languages'],
+    id: 'starter', name: 'Starter', price: '$9', cadence: '/mo', popular: true,
+    features: [
+      '1,000 answers/mo',
+      'WhatsApp handoff',
+      'Damage photos with AI review',
+      'Unlimited saved Q&As',
+      'Everything in Free',
+    ],
   },
   {
-    id: 'pro', name: 'Pro', price: '$9.99', cadence: '/mo',
-    features: ['Unlimited answers', 'Unlimited recommendations', 'Unlimited Q&As', 'WhatsApp handoff', 'Remove branding'],
+    id: 'pro', name: 'Pro', price: '$19', cadence: '/mo',
+    features: [
+      'Unlimited answers',
+      'Email inbox with AI drafts',
+      'Remove Zappy branding',
+      'Unlimited recommendations',
+      'Everything in Starter',
+    ],
   },
 ];
 

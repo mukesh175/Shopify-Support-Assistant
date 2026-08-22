@@ -35,6 +35,7 @@ export default function EmailsPage() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [forwardTo, setForwardTo] = useState<string | null>(null);
   const [configured, setConfigured] = useState(true);
+  const [included, setIncluded] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +56,7 @@ export default function EmailsPage() {
         setThreads(d.threads ?? []);
         setForwardTo(d.forwardTo ?? null);
         setConfigured(!!d.configured);
+        setIncluded(d.included !== false);
       }
     } catch (e: any) {
       setError(e?.message ?? 'Could not reach the server.');
@@ -118,6 +120,23 @@ export default function EmailsPage() {
         {error && (
           <Layout.Section>
             <Banner tone="critical" onDismiss={() => setError(null)}><p>{error}</p></Banner>
+          </Layout.Section>
+        )}
+
+        {!loading && configured && !included && (
+          <Layout.Section>
+            <Banner tone="info">
+              <BlockStack gap="300">
+                <Text as="p">
+                  Answering support email in Zappy is part of the Pro plan.
+                  Forward your inbox here and each message arrives with a reply
+                  drafted from your knowledge base, ready to check and send.
+                </Text>
+                <InlineStack>
+                  <Button url="/plans" variant="primary">See plans</Button>
+                </InlineStack>
+              </BlockStack>
+            </Banner>
           </Layout.Section>
         )}
 

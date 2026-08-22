@@ -3,6 +3,7 @@ import { verifyAppProxySignature } from '@/lib/auth/appProxy';
 import { getShopToken } from '@/lib/auth/session';
 import { lookupOrderItems } from '@/lib/shopify/orders';
 import { assessDamagePhotos } from '@/lib/ai/answer';
+import { getActivePlan } from '@/lib/shopify/billing';
 import { db, schema } from '@/lib/db';
 import { and, eq, gte, sql } from 'drizzle-orm';
 
@@ -147,7 +148,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const photos = parsePhotos(body.photos);
+    // Photo evidence is a paid feature. Drop the photos rather than the
+    // request: a shopper on a free shop still gets their return raised.
+    const plan = await getActivePlan(shopDomain, token);
+    const photos = plan.damagePhotos ? parsePhotos(body.photos) : [];
     // Never let a slow or failing vision call block the request being recorded.
     const assessment = photos.length ? await assessDamagePhotos(photos) : null;
 

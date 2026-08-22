@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { fetchReceivedEmail, stripQuotedReply } from '@/lib/email/resend';
 import { draftAnswer } from '@/lib/ai/answer';
+import { getShopToken } from '@/lib/auth/session';
+import { getActivePlan } from '@/lib/shopify/billing';
 import { db, schema } from '@/lib/db';
 import { and, eq, desc } from 'drizzle-orm';
 
@@ -74,6 +76,12 @@ export async function POST(req: NextRequest) {
 
   // Unknown address — accept and drop, so Resend does not retry forever.
   if (!shop) return NextResponse.json({ ok: true });
+
+  // Accept and drop for shops whose plan does not include email, rather than
+  // storing mail they cannot read or reply to.
+  const offline = await getShopToken(shop.shopDomain);
+  const plan = offline ? await getActivePlan(shop.shopDomain, offline) : null;
+  if (!plan?.emailChannel) return NextResponse.json({ ok: true });
 
   const customerEmail = mail.from;
   const body = stripQuotedReply(mail.text).slice(0, 10000);

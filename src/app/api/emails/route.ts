@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
-import { verifySessionToken, ensureOfflineToken, errorResponse } from '@/lib/auth/session';
+import { verifySessionToken, ensureOfflineToken, getShopToken, errorResponse } from '@/lib/auth/session';
+import { getActivePlan } from '@/lib/shopify/billing';
 import { emailConfigured, inboundAddress, sendEmail } from '@/lib/email/resend';
 import { db, schema } from '@/lib/db';
 import { and, eq, asc, desc } from 'drizzle-orm';
@@ -80,11 +81,21 @@ export async function GET(req: NextRequest) {
       .orderBy(desc(schema.emailThreads.lastMessageAt))
       .limit(100);
 
+    // The email channel is a paid feature. Existing threads stay readable if a
+    // shop downgrades — hiding what they already received would lose it — but
+    // the forwarding address is only handed out on a plan that includes it.
+    const offline = await getShopToken(shopDomain);
+    const plan = offline ? await getActivePlan(shopDomain, offline) : null;
+    const included = !!plan?.emailChannel;
+
     const configured = emailConfigured();
     return NextResponse.json({
       threads,
       configured,
-      forwardTo: configured ? inboundAddress(await ensureInboundToken(shopDomain)) : null,
+      included,
+      forwardTo: configured && included
+        ? inboundAddress(await ensureInboundToken(shopDomain))
+        : null,
     });
   } catch (e) {
     const r = errorResponse(e);
@@ -101,6 +112,15 @@ export async function POST(req: NextRequest) {
     const { threadId, body, replyTo } = await req.json();
     if (!threadId || !body?.trim()) {
       return NextResponse.json({ error: 'threadId and body required' }, { status: 400 });
+    }
+
+    const offline = await getShopToken(shopDomain);
+    const plan = offline ? await getActivePlan(shopDomain, offline) : null;
+    if (!plan?.emailChannel) {
+      return NextResponse.json(
+        { error: 'Replying by email is available on the Pro plan.' },
+        { status: 402 }
+      );
     }
 
     const [thread] = await db
