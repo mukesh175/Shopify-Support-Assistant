@@ -35,6 +35,12 @@ export const shops = pgTable('shops', {
   // forwards their support inbox to <slug>@<inbound domain>, and that is how
   // an arriving email is matched back to a shop.
   inboundToken: text('inbound_token'),
+  // Two short phrases naming things this shop actually sells, used as examples
+  // in the product-finder prompt. Cached because the storefront widget asks for
+  // config on every page load and this would otherwise be an Admin API call
+  // each time.
+  productExamples: text('product_examples'),
+  productExamplesAt: timestamp('product_examples_at'),
 });
 
 /**

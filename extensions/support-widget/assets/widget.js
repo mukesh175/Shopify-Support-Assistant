@@ -21,6 +21,20 @@
   // Photo evidence is a paid feature; off until /config says otherwise, so a
   // slow or failed call never offers something the shop cannot use.
   var PHOTOS_ENABLED = false;
+  // Named after things this shop actually sells. Empty until /config answers —
+  // a generic prompt beats one naming products the shop does not carry.
+  var PRODUCT_EXAMPLES = [];
+
+  function productPrompt() {
+    if (PRODUCT_EXAMPLES.length >= 2) {
+      return 'What are you looking for? For example: "' + PRODUCT_EXAMPLES[0] +
+        '" or "' + PRODUCT_EXAMPLES[1] + '".';
+    }
+    if (PRODUCT_EXAMPLES.length === 1) {
+      return 'What are you looking for? For example: "' + PRODUCT_EXAMPLES[0] + '".';
+    }
+    return 'What are you looking for? Describe it and I will find it for you.';
+  }
 
   var ICONS = {
     bubble: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
@@ -109,6 +123,11 @@
           if (greeted) showSuggestions();
         }
         if (cfg && cfg.photos === true) PHOTOS_ENABLED = true;
+        if (cfg && cfg.productExamples && cfg.productExamples.length) {
+          PRODUCT_EXAMPLES = cfg.productExamples.filter(function (t) {
+            return typeof t === 'string' && t.trim();
+          });
+        }
         if (cfg && typeof cfg.whatsapp === 'string' && cfg.whatsapp) {
           WHATSAPP = cfg.whatsapp.replace(/[^0-9]/g, '');
           var waQuick = panel.querySelector('.sa-wa-quick');
@@ -290,7 +309,7 @@
       else if (q === 'cancel') { showCancelStart(); }
       else if (q === 'reorder') { showReorderStart(); }
       else if (q === 'wa') { if (waReady()) openWhatsApp('Hi, I need help.'); }
-      else if (q === 'product') { mode = 'product'; textInput.placeholder = 'What are you looking for?'; bot('What are you looking for? e.g. "black snowboard" or "gift under $500".'); textInput.focus(); }
+      else if (q === 'product') { mode = 'product'; textInput.placeholder = 'What are you looking for?'; bot(productPrompt()); textInput.focus(); }
       else { mode = 'faq'; textInput.placeholder = 'Ask anything…'; textInput.focus(); }
     });
   });

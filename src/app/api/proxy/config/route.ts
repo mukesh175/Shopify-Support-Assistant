@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAppProxySignature } from '@/lib/auth/appProxy';
 import { getShopToken } from '@/lib/auth/session';
 import { getActivePlan } from '@/lib/shopify/billing';
+import { fetchProductExamples } from '@/lib/shopify/products';
 import { db, schema } from '@/lib/db';
 import { and, eq, desc } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
+
+// Catalogues change slowly, and config is read on every storefront page load.
+const EXAMPLES_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // The storefront widget calls this once on load (via App Proxy) to know how to
 // render: whether to show branding, whether WhatsApp handoff is unlocked on the
@@ -19,6 +23,7 @@ export async function GET(req: NextRequest) {
     branding: true,
     whatsapp: null as string | null,
     photos: false,
+    productExamples: [] as string[],
     suggestions: [] as string[],
   };
   if (!verifyAppProxySignature(url)) return NextResponse.json(fallback);
@@ -40,6 +45,7 @@ export async function GET(req: NextRequest) {
       .filter(Boolean);
 
     const token = await getShopToken(shopDomain);
+    let productExamples: string[] = [];
     let branding = true;
     let whatsapp: string | null = null;
     let photos = false;
@@ -55,8 +61,37 @@ export async function GET(req: NextRequest) {
           .limit(1);
         whatsapp = shop?.whatsappNumber || null;
       }
+
+      const [cached] = await db
+        .select({
+          productExamples: schema.shops.productExamples,
+          productExamplesAt: schema.shops.productExamplesAt,
+        })
+        .from(schema.shops)
+        .where(eq(schema.shops.shopDomain, shopDomain))
+        .limit(1);
+
+      const fresh = cached?.productExamplesAt &&
+        Date.now() - new Date(cached.productExamplesAt).getTime() < EXAMPLES_TTL_MS;
+
+      if (fresh && cached?.productExamples) {
+        try { productExamples = JSON.parse(cached.productExamples); } catch { /* refetch below */ }
+      }
+
+      if (!productExamples.length) {
+        productExamples = await fetchProductExamples(shopDomain, token);
+        // Stamp the time even when nothing came back, so a shop with no usable
+        // product names is not re-queried on every single page load.
+        await db
+          .update(schema.shops)
+          .set({
+            productExamples: JSON.stringify(productExamples),
+            productExamplesAt: new Date(),
+          })
+          .where(eq(schema.shops.shopDomain, shopDomain));
+      }
     }
-    return NextResponse.json({ branding, whatsapp, photos, suggestions });
+    return NextResponse.json({ branding, whatsapp, photos, productExamples, suggestions });
   } catch {
     return NextResponse.json(fallback);
   }

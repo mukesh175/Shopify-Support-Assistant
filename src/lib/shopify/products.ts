@@ -158,3 +158,64 @@ export async function recommendProducts(
   }
   return picked;
 }
+
+const EXAMPLES_QUERY = /* GraphQL */ `
+  query ProductExamples {
+    products(first: 25, sortKey: BEST_SELLING) {
+      edges { node { title productType } }
+    }
+  }
+`;
+
+/**
+ * Two short phrases naming things this shop actually sells.
+ *
+ * The product finder used to suggest "black snowboard" and "gift under $500",
+ * which came from Shopify's demo data. On a real shop that reads as though the
+ * assistant has never seen the catalogue, so the examples come from the
+ * catalogue instead.
+ *
+ * Product type first — "Headset" is a better prompt than a full SKU title —
+ * falling back to the opening words of a title when types are not set.
+ */
+export async function fetchProductExamples(
+  shopDomain: string,
+  accessToken: string
+): Promise<string[]> {
+  try {
+    const res = await fetch(
+      `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': accessToken,
+        },
+        body: JSON.stringify({ query: EXAMPLES_QUERY }),
+      }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const nodes = (data?.data?.products?.edges ?? []).map((e: any) => e.node);
+
+    const seen = new Set<string>();
+    const out: string[] = [];
+
+    for (const source of [
+      nodes.map((n: any) => (n.productType ?? '').trim()),
+      // Full titles are often long and SKU-ish, so keep the first few words.
+      nodes.map((n: any) => (n.title ?? '').trim().split(/\s+/).slice(0, 3).join(' ')),
+    ]) {
+      for (const raw of source) {
+        const v = String(raw).toLowerCase();
+        if (v.length < 3 || v.length > 28 || seen.has(v)) continue;
+        seen.add(v);
+        out.push(String(raw));
+        if (out.length >= 2) return out;
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
