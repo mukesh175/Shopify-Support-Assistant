@@ -30,45 +30,65 @@ function systemPrompt(allLanguages: boolean): string {
 
 const SYSTEM_PROMPT = systemPrompt(true);
 
+// Google retires models without warning: gemini-2.5-flash started returning
+// 404 "no longer available to new users", which silently took every answer in
+// every shop down. Never depend on a single model name — try each in order and
+// fall through when one is gone.
+const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
+
+// Thinking tokens are spent out of maxOutputTokens, and a big knowledge base
+// left nothing for the actual reply. Retrieval-style answering needs no
+// reasoning, so ask for as little as each generation allows — but the two
+// families spell it differently and reject the other's spelling outright
+// (thinkingBudget on a 3.x model is a hard 400).
+function thinkingConfig(model: string): Record<string, unknown> {
+  return model.startsWith('gemini-2.5')
+    ? { thinkingBudget: 0 }
+    : { thinkingLevel: 'low' };
+}
+
 async function callGemini(prompt: string, system: string = SYSTEM_PROMPT): Promise<string | null> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
-  const model = 'gemini-2.5-flash';
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 1200,
-          // 2.5 models think by default, and thinking tokens are spent out of
-          // maxOutputTokens. With a large knowledge base the model used the
-          // whole budget reasoning and returned a candidate with no text at
-          // all, which read to us as "no answer" — so a shop with good answers
-          // looked like a shop with none, and it got worse the more Q&As the
-          // merchant added. Retrieval-style answering needs no reasoning.
-          thinkingConfig: { thinkingBudget: 0 },
-        },
-      }),
+
+  for (const model of GEMINI_MODELS) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 1200,
+            thinkingConfig: thinkingConfig(model),
+          },
+        }),
+      }
+    );
+
+    if (res.ok) {
+      const data = await res.json();
+      const text = extractGeminiText(data);
+      if (text) return text;
+      console.error('[gemini] empty completion', {
+        model,
+        finishReason: data?.candidates?.[0]?.finishReason,
+        blockReason: data?.promptFeedback?.blockReason,
+      });
+      return null;
     }
-  );
-  if (!res.ok) {
-    console.error('[gemini] http error', res.status, (await res.text()).slice(0, 300));
-    return null;
+
+    const detail = (await res.text()).slice(0, 300);
+    console.error('[gemini] http error', { model, status: res.status, detail });
+    // 404 = model retired, 400 = this model rejects our request shape. Both are
+    // worth retrying on the next model. A 429 or 5xx is about the key or the
+    // service, so another model would fail the same way — hand over to Groq.
+    if (res.status !== 404 && res.status !== 400) return null;
   }
-  const data = await res.json();
-  const text = extractGeminiText(data);
-  if (!text) {
-    console.error('[gemini] empty completion', {
-      finishReason: data?.candidates?.[0]?.finishReason,
-      blockReason: data?.promptFeedback?.blockReason,
-    });
-  }
-  return text;
+  return null;
 }
 
 // Gemini can split a reply across several parts, and (when thinking is on) mark
@@ -210,39 +230,42 @@ export async function assessDamagePhotos(
   const key = process.env.GEMINI_API_KEY;
   if (!key || !photos.length) return null;
 
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: DAMAGE_PROMPT }] },
-          contents: [{
-            role: 'user',
-            parts: [
-              { text: 'What is wrong with this item?' },
-              ...photos.map((p) => ({
-                inlineData: { mimeType: p.mimeType, data: p.base64 },
-              })),
-            ],
-          }],
-          // Same thinking-budget trap as the text path: 200 tokens was not
-          // enough to think and answer, so the assessment came back empty.
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 800,
-            thinkingConfig: { thinkingBudget: 0 },
-          },
-        }),
-      }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return extractGeminiText(data);
-  } catch {
-    return null;
+  // Same model fallback as the text path — this call hardcoded the retired
+  // model too, so damage assessment had been failing silently alongside it.
+  for (const model of GEMINI_MODELS) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: DAMAGE_PROMPT }] },
+            contents: [{
+              role: 'user',
+              parts: [
+                { text: 'What is wrong with this item?' },
+                ...photos.map((p) => ({
+                  inlineData: { mimeType: p.mimeType, data: p.base64 },
+                })),
+              ],
+            }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 800,
+              thinkingConfig: thinkingConfig(model),
+            },
+          }),
+        }
+      );
+      if (res.ok) return extractGeminiText(await res.json());
+      console.error('[gemini/vision] http error', { model, status: res.status });
+      if (res.status !== 404 && res.status !== 400) return null;
+    } catch {
+      return null;
+    }
   }
+  return null;
 }
 
 const DRAFT_PROMPT = `You are helping a shop owner write an answer for their support knowledge base.
