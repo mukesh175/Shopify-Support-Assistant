@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { probeProviders } from '@/lib/ai/answer';
 import { sql } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
@@ -49,18 +50,29 @@ export async function GET(req: NextRequest) {
   const ok = dbConnected && tablesExist && env.SHOPIFY_API_SECRET;
   if (!detailed) return NextResponse.json({ ok });
 
+  // Live provider check. Only runs for authenticated callers: it spends real
+  // API quota and quotes provider error text. The assistant answering nothing
+  // while everything else is green is almost always a provider problem, and
+  // the chain hides those by design, so this is the only way to see them
+  // without reading deployment logs.
+  const providers = await probeProviders();
+  const anyProviderOk = providers.some((p) => p.ok);
+
   return NextResponse.json({
     ok,
     env,
     dbConnected,
     tablesExist,
     dbError,
+    providers,
     hint: !dbConnected
       ? 'DB unreachable — check DATABASE_URL in Vercel env vars.'
       : !tablesExist
       ? 'DB connected but tables missing — run `npm run db:push` locally against the same DATABASE_URL.'
       : !env.SHOPIFY_API_SECRET
       ? 'SHOPIFY_API_SECRET missing in Vercel env vars.'
+      : !anyProviderOk
+      ? 'Database and config are fine, but no AI provider is answering — see `providers` below. Customers are being told the assistant is unreachable.'
       : 'All core systems healthy.',
   });
 }

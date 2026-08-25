@@ -280,3 +280,53 @@ export async function draftAnswer(
     `EXISTING ENTRIES:\n${examples}\n\nCUSTOMER QUESTION TO ANSWER:\n${question}`
   );
 }
+
+/**
+ * Call each provider with a trivial prompt and report what came back.
+ *
+ * The provider chain deliberately swallows failures so a customer always gets
+ * a reply, which makes a misconfigured or rate-limited key invisible from the
+ * outside. This exists to make that visible on demand. It performs real API
+ * calls, and the errors it surfaces can quote provider responses, so callers
+ * must keep it behind an admin check.
+ */
+export async function probeProviders(): Promise<
+  Array<{ provider: string; keySet: boolean; ok: boolean; detail: string }>
+> {
+  const keys: Record<string, string | undefined> = {
+    gemini: process.env.GEMINI_API_KEY,
+    groq: process.env.GROQ_API_KEY,
+  };
+  const results = [];
+  for (const p of PROVIDERS) {
+    const keySet = !!keys[p.name];
+    if (!keySet) {
+      results.push({
+        provider: p.name,
+        keySet: false,
+        ok: false,
+        detail: 'no API key set for this provider',
+      });
+      continue;
+    }
+    try {
+      const out = await p.fn('Reply with the single word: ok', 'You are a test probe.');
+      results.push({
+        provider: p.name,
+        keySet: true,
+        ok: !!out,
+        detail: out
+          ? `replied: ${out.slice(0, 80)}`
+          : 'key is set but the call returned nothing — see the [gemini]/[groq] line in the deployment logs for the status code',
+      });
+    } catch (e) {
+      results.push({
+        provider: p.name,
+        keySet: true,
+        ok: false,
+        detail: `threw: ${(e as Error)?.message ?? String(e)}`.slice(0, 200),
+      });
+    }
+  }
+  return results;
+}
