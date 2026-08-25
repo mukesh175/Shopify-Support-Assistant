@@ -10,6 +10,7 @@
   var ICON = root.dataset.icon || 'bubble';
   var POSITION = root.dataset.position === 'left' ? 'left' : 'right';
   var BRAND = root.dataset.brandName || 'Support';
+  var LOGO = root.dataset.logo || '';
   var CUSTOMER = root.dataset.customerName || '';
   var SUGGESTIONS = [];
   // WhatsApp handoff is a paid feature. The number is served by /config only
@@ -65,8 +66,13 @@
   panel.innerHTML =
     '<div class="sa-header">' +
       '<div class="sa-ident">' +
-        '<span class="sa-avatar" style="background:' + ACCENT + ';color:' + TEXTCOLOR + '">' +
-          escapeHtml((BRAND || '?').charAt(0).toUpperCase()) + '</span>' +
+        // A merchant logo replaces the initial when one is set. The alt is
+        // empty because the name sits right beside it — announcing the brand
+        // twice is noise to a screen reader.
+        (LOGO
+          ? '<img class="sa-avatar sa-logo" src="' + escapeHtml(LOGO) + '" alt="">'
+          : '<span class="sa-avatar" style="background:' + ACCENT + ';color:' + TEXTCOLOR + '">' +
+            escapeHtml((BRAND || '?').charAt(0).toUpperCase()) + '</span>') +
         '<span class="sa-brandname">' + escapeHtml(BRAND) + '</span>' +
       '</div>' +
       '<div class="sa-hactions">' +

@@ -12,7 +12,8 @@
   data-popup="{{ block.settings.popup_text | escape }}"
   data-icon="{{ block.settings.launcher_icon }}"
   data-position="{{ block.settings.position }}"
-  data-brand-name="{{ shop.name | escape }}"
+  data-brand-name="{{ block.settings.display_name | default: shop.name | escape }}"
+  data-logo="{% if block.settings.logo %}{{ block.settings.logo | image_url: width: 96 }}{% endif %}"
   data-customer-name="{{ customer.first_name | escape }}"
 ></div>
 
@@ -24,6 +25,17 @@
   "name": "Zappy",
   "target": "body",
   "settings": [
+    { "type": "header", "content": "Identity" },
+    {
+      "type": "text", "id": "display_name",
+      "label": "Assistant name",
+      "info": "Shown at the top of the chat. Leave blank to use your store name."
+    },
+    {
+      "type": "image_picker", "id": "logo",
+      "label": "Logo",
+      "info": "Square images look best. Leave blank to show the first letter of the name."
+    },
     { "type": "header", "content": "Appearance" },
     { "type": "color", "id": "accent_color", "label": "Main color (button & header)", "default": "#1a1a1a" },
     { "type": "color", "id": "text_color", "label": "Button/header text color", "default": "#ffffff" },
