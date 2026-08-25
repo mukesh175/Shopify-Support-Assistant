@@ -1,0 +1,7 @@
+/* Polaris's Page ends flush with the last element, so in the admin iframe the
+   final row or help text sits hard against the bottom edge with nowhere to
+   scroll past. Every page in this app is a Polaris Page, so the breathing room
+   belongs here rather than repeated at the bottom of each one. */
+.Polaris-Page {
+  padding-bottom: var(--p-space-800, 32px);
+}

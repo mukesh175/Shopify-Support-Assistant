@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import '@shopify/polaris/build/esm/styles.css';
+import './globals.css';
 import PolarisProvider from './PolarisProvider';
 import AppNav from './AppNav';
 

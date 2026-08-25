@@ -23,6 +23,10 @@ const KIND_LABEL: Record<string, string> = {
   order_status: 'Order',
   recommend: 'Product',
   error: 'Outage',
+  // Logged when the assistant could not find an answer. It was still a
+  // question — the Status column is what says it went unanswered — so showing
+  // the raw kind here just leaked a database value into the merchant's view.
+  unresolved: 'Question',
 };
 
 // IndexTable cells are nowrap, so a long question or answer ran straight
