@@ -22,7 +22,25 @@ const KIND_LABEL: Record<string, string> = {
   faq: 'Question',
   order_status: 'Order',
   recommend: 'Product',
+  error: 'Outage',
 };
+
+// IndexTable cells are nowrap, so a long question or answer ran straight
+// across the neighbouring columns instead of wrapping — the row read as a
+// smear of overlapping text. Re-enable wrapping and bound the column.
+const CELL_TEXT: React.CSSProperties = {
+  maxWidth: 260,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+};
+
+// Long answers used to push the Type/Status/When columns off their own
+// gridlines, so a row read as a smear of overlapping text. The full text is
+// available in the draft view; the table only needs enough to recognise a row.
+function clip(s: string, max: number) {
+  const t = s.replace(/\s+/g, ' ').trim();
+  return t.length > max ? t.slice(0, max - 1).trimEnd() + '…' : t;
+}
 
 function fmt(iso: string) {
   try {
@@ -255,20 +273,30 @@ export default function ConversationsPage() {
                 {rows.map((r, index) => (
                   <IndexTable.Row id={String(r.id)} key={r.id} position={index}>
                     <IndexTable.Cell>
-                      <Box maxWidth="260px">
-                        <Text as="span" fontWeight="semibold" breakWord>{r.question}</Text>
-                      </Box>
+                      <div style={CELL_TEXT}>
+                        <Text as="span" fontWeight="semibold" breakWord>
+                          {clip(r.question, 70)}
+                        </Text>
+                      </div>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      <Box maxWidth="320px">
-                        <Text as="span" tone="subdued" breakWord>{r.answer ?? '—'}</Text>
-                      </Box>
+                      <div style={{ ...CELL_TEXT, maxWidth: 340 }}>
+                        <Text as="span" tone="subdued" breakWord>
+                          {r.answer ? clip(r.answer, 110) : '—'}
+                        </Text>
+                      </div>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
                       <Text as="span">{KIND_LABEL[r.kind] ?? r.kind}</Text>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      {r.resolved
+                      {/* An outage is not a gap in the knowledge base. Writing
+                          an answer would not have helped, so it is not offered
+                          one and it does not sit in the merchant's queue
+                          looking like work they failed to do. */}
+                      {r.kind === 'error'
+                        ? <Badge tone="warning">Assistant was down</Badge>
+                        : r.resolved
                         ? <Badge tone="success">Answered</Badge>
                         : r.handled
                         ? <Badge tone="info">Added to KB</Badge>
@@ -278,7 +306,7 @@ export default function ConversationsPage() {
                       <Text as="span" tone="subdued">{fmt(r.createdAt)}</Text>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      {!r.resolved && !r.handled && (
+                      {r.kind !== 'error' && !r.resolved && !r.handled && (
                         <Button size="slim" onClick={() => openDraft(r)}>
                           Draft answer
                         </Button>

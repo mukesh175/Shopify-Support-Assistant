@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken, ensureOfflineToken, errorResponse } from '@/lib/auth/session';
 import { db, schema } from '@/lib/db';
-import { and, eq, desc, ilike, or, sql, type SQL } from 'drizzle-orm';
+import { and, eq, ne, desc, ilike, or, sql, type SQL } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
@@ -32,9 +32,13 @@ export async function GET(req: NextRequest) {
     if (status === 'resolved') filters.push(eq(schema.queryLogs.resolved, true));
     if (status === 'unresolved') filters.push(eq(schema.queryLogs.resolved, false));
     // The gaps still worth attention: unanswered and not yet acted on.
+    // Outages are excluded — the assistant was unreachable, so there is no
+    // missing answer for the merchant to write, and a run of them would
+    // otherwise bury the questions that genuinely need one.
     if (status === 'todo') {
       filters.push(eq(schema.queryLogs.resolved, false));
       filters.push(eq(schema.queryLogs.handled, false));
+      filters.push(ne(schema.queryLogs.kind, 'error'));
     }
     if ((KINDS as readonly string[]).includes(kind)) {
       filters.push(eq(schema.queryLogs.kind, kind));
