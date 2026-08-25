@@ -42,13 +42,49 @@ async function callGemini(prompt: string, system: string = SYSTEM_PROMPT): Promi
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 400 },
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 1200,
+          // 2.5 models think by default, and thinking tokens are spent out of
+          // maxOutputTokens. With a large knowledge base the model used the
+          // whole budget reasoning and returned a candidate with no text at
+          // all, which read to us as "no answer" — so a shop with good answers
+          // looked like a shop with none, and it got worse the more Q&As the
+          // merchant added. Retrieval-style answering needs no reasoning.
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       }),
     }
   );
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.error('[gemini] http error', res.status, (await res.text()).slice(0, 300));
+    return null;
+  }
   const data = await res.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
+  const text = extractGeminiText(data);
+  if (!text) {
+    console.error('[gemini] empty completion', {
+      finishReason: data?.candidates?.[0]?.finishReason,
+      blockReason: data?.promptFeedback?.blockReason,
+    });
+  }
+  return text;
+}
+
+// Gemini can split a reply across several parts, and (when thinking is on) mark
+// some of them as thought. Join the non-thought parts rather than trusting
+// parts[0], which may be empty or a thought summary.
+function extractGeminiText(data: unknown): string | null {
+  const parts = (data as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }>;
+  })?.candidates?.[0]?.content?.parts;
+  if (!Array.isArray(parts)) return null;
+  const text = parts
+    .filter((p) => !p.thought && typeof p.text === 'string')
+    .map((p) => p.text)
+    .join('')
+    .trim();
+  return text || null;
 }
 
 async function callGroq(prompt: string, system: string = SYSTEM_PROMPT): Promise<string | null> {
@@ -70,7 +106,10 @@ async function callGroq(prompt: string, system: string = SYSTEM_PROMPT): Promise
       ],
     }),
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.error('[groq] http error', res.status, (await res.text()).slice(0, 300));
+    return null;
+  }
   const data = await res.json();
   return data?.choices?.[0]?.message?.content?.trim() ?? null;
 }
@@ -188,13 +227,19 @@ export async function assessDamagePhotos(
               })),
             ],
           }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 200 },
+          // Same thinking-budget trap as the text path: 200 tokens was not
+          // enough to think and answer, so the assessment came back empty.
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 800,
+            thinkingConfig: { thinkingBudget: 0 },
+          },
         }),
       }
     );
     if (!res.ok) return null;
     const data = await res.json();
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
+    return extractGeminiText(data);
   } catch {
     return null;
   }

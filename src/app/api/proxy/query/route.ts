@@ -182,7 +182,22 @@ export async function POST(req: NextRequest) {
     .from(schema.faqs)
     .where(and(eq(schema.faqs.shopDomain, shopDomain), eq(schema.faqs.enabled, true)));
 
-  const { text } = await answerFromKnowledge(message, faqRows, plan.allLanguages);
+  const { text, provider } = await answerFromKnowledge(message, faqRows, plan.allLanguages);
+
+  // A provider outage and a genuine gap in the knowledge base used to produce
+  // the same reply, which made a shop with good answers look like it had none.
+  // 'none' means every provider failed, so say that instead of implying the
+  // store never wrote an answer.
+  if (provider === 'none') {
+    console.error('[query] all AI providers failed', {
+      shopDomain,
+      faqCount: faqRows.length,
+    });
+    const text = "I'm having trouble reaching our assistant right now. Please try again in a moment, or contact the store directly.";
+    await logQuery(shopDomain, message, text, 'error', false);
+    return NextResponse.json({ kind: 'error', text });
+  }
+
   const unresolved = text.includes('__UNRESOLVED__');
   const finalText = unresolved
     ? "I'm not sure about that one — I've noted it so the team can follow up. You can also email us directly."
