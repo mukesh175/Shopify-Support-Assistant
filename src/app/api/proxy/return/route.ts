@@ -9,6 +9,10 @@ import { db, schema } from '@/lib/db';
 import { and, eq, gte, sql } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
+// Several Shopify calls run in sequence here. Vercel's 10s default would cut
+// them off with an HTML gateway error the widget cannot parse, leaving the
+// shopper with a bare 'could not reach support'.
+export const maxDuration = 60;
 
 const REASONS = [
   'Wrong size or fit',

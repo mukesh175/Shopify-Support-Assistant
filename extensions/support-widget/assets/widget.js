@@ -493,7 +493,20 @@
   function post(payload) {
     var typing = bot('', true);
     fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        // A gateway timeout or crash arrives as an HTML page, and r.json()
+        // throws with nothing to show for it. Say what actually came back —
+        // the shopper still sees the same apology, but the store now has
+        // something to act on.
+        return r.text().then(function (raw) {
+          try {
+            return JSON.parse(raw);
+          } catch (e) {
+            console.error('[zappy] ' + r.status + ' from ' + PROXY + ': ' + raw.slice(0, 200));
+            throw e;
+          }
+        });
+      })
       .then(function (data) {
         typing.remove();
         bot(data.text || 'Sorry, something went wrong.');

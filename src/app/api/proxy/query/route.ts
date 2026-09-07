@@ -32,10 +32,35 @@ async function monthlyCount(shopDomain: string, kind?: string): Promise<number> 
 }
 
 export const runtime = 'nodejs';
+// The product finder makes two LLM calls and up to three Admin API calls in
+// sequence, which does not fit Vercel's 10s default. Exceeding it returns an
+// HTML gateway error the widget cannot parse, so the shopper sees a bare
+// 'could not reach support' with nothing in our logs to explain it.
+export const maxDuration = 60;
+
+/**
+ * Nothing here may reach the shopper as a crash.
+ *
+ * An unhandled throw becomes an HTML error page, and the widget can only parse
+ * JSON — so every bug in this route showed up in the chat as "Sorry, I could
+ * not reach support right now", indistinguishable from the shopper's wifi
+ * dropping. The real error goes to the logs instead, where it can be fixed.
+ */
+export async function POST(req: NextRequest) {
+  try {
+    return await handleQuery(req);
+  } catch (e) {
+    console.error('[query] unhandled', e);
+    return NextResponse.json({
+      kind: 'error',
+      text: "I'm having trouble right now. Please try again in a moment, or contact the store directly.",
+    });
+  }
+}
 
 // Customer widget POSTs here (proxied by Shopify at /apps/support/query).
 // Shopify appends the shop + a signature to the query string.
-export async function POST(req: NextRequest) {
+async function handleQuery(req: NextRequest) {
   const url = new URL(req.url);
 
   if (!verifyAppProxySignature(url)) {

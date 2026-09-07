@@ -47,6 +47,12 @@ function thinkingConfig(model: string): Record<string, unknown> {
     : { thinkingLevel: 'low' };
 }
 
+// No single provider call may eat the whole request budget. Gemini alone can
+// try three models before Groq is reached, and one hung connection used to
+// take the request past the platform timeout — which reaches the shopper as an
+// unparseable gateway error rather than an answer.
+const LLM_TIMEOUT_MS = 12000;
+
 async function callGemini(prompt: string, system: string = SYSTEM_PROMPT): Promise<string | null> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
@@ -57,6 +63,7 @@ async function callGemini(prompt: string, system: string = SYSTEM_PROMPT): Promi
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: system }] },
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -116,6 +123,7 @@ async function callGroq(prompt: string, system: string = SYSTEM_PROMPT): Promise
       'Content-Type': 'application/json',
       Authorization: `Bearer ${key}`,
     },
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
       temperature: 0.2,

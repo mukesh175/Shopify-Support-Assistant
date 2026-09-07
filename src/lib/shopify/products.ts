@@ -37,20 +37,29 @@ async function fetchCandidates(
 ): Promise<any[]> {
   // Broaden the search: match title/tag/product_type, in stock preferred.
   const q = `${keywords} status:active`.trim();
-  const res = await fetch(
-    `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': accessToken,
-      },
-      body: JSON.stringify({ query: SEARCH_QUERY, variables: { q } }),
-    }
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  return (data?.data?.products?.edges ?? []).map((e: any) => e.node);
+  try {
+    const res = await fetch(
+      `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': accessToken,
+        },
+        // A hung Admin API call must not run out the whole request budget.
+        signal: AbortSignal.timeout(10000),
+        body: JSON.stringify({ query: SEARCH_QUERY, variables: { q } }),
+      }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data?.data?.products?.edges ?? []).map((e: any) => e.node);
+  } catch {
+    // A network error here used to escape as a 500, which the widget could
+    // only report as "could not reach support". No candidates is the honest
+    // answer, and the caller already has a message for it.
+    return [];
+  }
 }
 
 function toRec(node: any, shopDomain: string): ProductRec {
@@ -115,7 +124,10 @@ export async function recommendProducts(
   // 2) Fetch candidates. If keyword search is empty, or the request is mostly a
   //    price filter, fall back to browsing all products so price filter works.
   let candidates = await fetchCandidates(shopDomain, accessToken, keywords);
-  if (candidates.length === 0) {
+  // Only worth a second search when it would actually differ: with the model
+  // unavailable, keywords fall back to the raw request and this repeated the
+  // identical query, paying a round trip for the same empty result.
+  if (candidates.length === 0 && keywords !== request) {
     candidates = await fetchCandidates(shopDomain, accessToken, request);
   }
   if (candidates.length === 0 && hasPriceFilter) {
@@ -134,7 +146,13 @@ export async function recommendProducts(
     else return [];
   }
 
-  // 3) Ask the LLM to rank which candidates best fit the request
+  // 3) Ask the LLM to rank which candidates best fit the request. With no more
+  //    candidates than we can show, ranking cannot change the answer — skip the
+  //    round trip and show them.
+  if (candidates.length <= limit) {
+    return candidates.map((n) => toRec(n, shopDomain));
+  }
+
   const brief = candidates.slice(0, 15).map((n, i) => ({
     i,
     title: n.title,
