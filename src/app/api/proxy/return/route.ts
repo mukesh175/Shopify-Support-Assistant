@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAppProxySignature } from '@/lib/auth/appProxy';
 import { getShopToken } from '@/lib/auth/session';
 import { lookupOrderItems } from '@/lib/shopify/orders';
+import { quickActionEnabled, ACTION_OFF } from '@/lib/shopQuickActions';
 import { assessDamagePhotos } from '@/lib/ai/answer';
 import { getActivePlan } from '@/lib/shopify/billing';
 import { db, schema } from '@/lib/db';
@@ -59,6 +60,13 @@ export async function POST(req: NextRequest) {
   if (!shopDomain) return NextResponse.json({ error: 'missing shop' }, { status: 400 });
 
   const body = await req.json().catch(() => ({}));
+
+  // A merchant who turned returns off in the app should not be able to receive
+  // one through a page that was loaded before the change.
+  if (!(await quickActionEnabled(shopDomain, 'return'))) {
+    return NextResponse.json({ kind: 'return_error', text: ACTION_OFF.text });
+  }
+
   const token = await getShopToken(shopDomain);
   if (!token) {
     return NextResponse.json({

@@ -230,6 +230,13 @@
 .sa-card-title { font-size: 13.5px; font-weight: 600; line-height: 1.3;
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .sa-card-price { font-size: 13px; color: #444; margin-top: 2px; }
+/* Category cards are buttons, not links — they load products into the chat
+   rather than sending the shopper off to a collection page. Themes style
+   buttons heavily, so the inherited look is reset back to the card. */
+.sa-col-card {
+  width: 100%; text-align: left; cursor: pointer; font: inherit;
+  align-items: center; box-shadow: none;
+}
 
 
 /* Pill input bar — the border wraps input and send button as one control. */

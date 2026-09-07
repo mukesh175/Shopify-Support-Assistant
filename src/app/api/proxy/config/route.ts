@@ -4,6 +4,7 @@ import { getShopToken } from '@/lib/auth/session';
 import { getActivePlan } from '@/lib/shopify/billing';
 import { fetchProductExamples } from '@/lib/shopify/products';
 import { db, schema } from '@/lib/db';
+import { defaultQuickActions, parseQuickActions } from '@/lib/quickActions';
 import { and, eq, desc } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
@@ -43,6 +44,15 @@ export async function GET(req: NextRequest) {
     const suggestions = faqs
       .map((f) => (f.question ?? '').trim())
       .filter(Boolean);
+
+    // Which chat buttons this merchant wants shown. Read before the plan check
+    // so the setting is honoured even for a shop whose token has gone stale.
+    const [buttons] = await db
+      .select({ quickActions: schema.shops.quickActions })
+      .from(schema.shops)
+      .where(eq(schema.shops.shopDomain, shopDomain))
+      .limit(1);
+    const actions = parseQuickActions(buttons?.quickActions);
 
     const token = await getShopToken(shopDomain);
     let productExamples: string[] = [];
@@ -91,7 +101,7 @@ export async function GET(req: NextRequest) {
           .where(eq(schema.shops.shopDomain, shopDomain));
       }
     }
-    return NextResponse.json({ branding, whatsapp, photos, productExamples, suggestions });
+    return NextResponse.json({ branding, whatsapp, photos, productExamples, suggestions, actions });
   } catch {
     return NextResponse.json(fallback);
   }

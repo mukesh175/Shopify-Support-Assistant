@@ -26,6 +26,14 @@
   // a generic prompt beats one naming products the shop does not carry.
   var PRODUCT_EXAMPLES = [];
 
+  // Which buttons the merchant wants offered (set in the app under Settings).
+  // Everything is on until /config says otherwise: a slow or failed call
+  // should leave the widget as capable as it was, not blank out its buttons.
+  var ACTIONS = {
+    faq: true, product: true, collections: true,
+    order: true, return: true, cancel: true, reorder: true
+  };
+
   function productPrompt() {
     if (PRODUCT_EXAMPLES.length >= 2) {
       return 'What are you looking for? For example: "' + PRODUCT_EXAMPLES[0] +
@@ -94,7 +102,7 @@
     '<div class="sa-history"></div>' +
     '<div class="sa-quick">' +
       '<button data-q="faq">Ask a question</button>' +
-      '<button data-q="product">Find a product</button>' +
+      '<button data-q="find">Find a product</button>' +
       '<button data-q="order">Track my order</button>' +
       '<button data-q="return">Return an item</button>' +
       '<button data-q="cancel">Cancel an order</button>' +
@@ -133,6 +141,12 @@
           PRODUCT_EXAMPLES = cfg.productExamples.filter(function (t) {
             return typeof t === 'string' && t.trim();
           });
+        }
+        if (cfg && cfg.actions && typeof cfg.actions === 'object') {
+          for (var k in ACTIONS) {
+            if (typeof cfg.actions[k] === 'boolean') ACTIONS[k] = cfg.actions[k];
+          }
+          applyActions();
         }
         if (cfg && typeof cfg.whatsapp === 'string' && cfg.whatsapp) {
           WHATSAPP = cfg.whatsapp.replace(/[^0-9]/g, '');
@@ -306,6 +320,54 @@
     body.scrollTop = body.scrollHeight;
   });
 
+  /**
+   * Show only the buttons this shop has turned on.
+   *
+   * "Find a product" covers two ways of finding one — searching and browsing
+   * collections — so it stays as long as either is on, and the step after the
+   * tap adapts to which.
+   */
+  function applyActions() {
+    panel.querySelectorAll('.sa-quick button').forEach(function (b) {
+      var q = b.dataset.q;
+      if (q === 'wa') return; // driven by the WhatsApp config, not this setting
+      var on = q === 'find' ? (ACTIONS.product || ACTIONS.collections) : ACTIONS[q] !== false;
+      b.style.display = on ? '' : 'none';
+    });
+  }
+
+  function startProductSearch() {
+    mode = 'product';
+    textInput.placeholder = 'What are you looking for?';
+    bot(productPrompt());
+    textInput.focus();
+  }
+
+  function startCollectionBrowse() {
+    mode = 'faq';
+    user('Browse categories');
+    post({ intent: 'collections' });
+  }
+
+  /**
+   * Two ways in: describe it, or tap through the store's categories. When the
+   * merchant has turned one of them off, go straight to the other rather than
+   * asking a question with one answer.
+   */
+  function showFindChoice() {
+    if (!ACTIONS.collections) return startProductSearch();
+    if (!ACTIONS.product) return startCollectionBrowse();
+
+    bot('How would you like to find it?');
+    var wrap = el('div', 'sa-suggests');
+    var b1 = el('button', 'sa-suggest', '🔍 Tell me what you want');
+    var b2 = el('button', 'sa-suggest', '🗂️ Browse categories');
+    b1.addEventListener('click', function () { wrap.remove(); startProductSearch(); });
+    b2.addEventListener('click', function () { wrap.remove(); startCollectionBrowse(); });
+    wrap.appendChild(b1); wrap.appendChild(b2);
+    body.appendChild(wrap); body.scrollTop = body.scrollHeight;
+  }
+
   panel.querySelectorAll('.sa-quick button').forEach(function (b) {
     b.addEventListener('click', function () {
       b.blur();
@@ -315,7 +377,7 @@
       else if (q === 'cancel') { showCancelStart(); }
       else if (q === 'reorder') { showReorderStart(); }
       else if (q === 'wa') { if (waReady()) openWhatsApp('Hi, I need help.'); }
-      else if (q === 'product') { mode = 'product'; textInput.placeholder = 'What are you looking for?'; bot(productPrompt()); textInput.focus(); }
+      else if (q === 'find') { showFindChoice(); }
       else { mode = 'faq'; textInput.placeholder = 'Ask anything…'; textInput.focus(); }
     });
   });
@@ -440,6 +502,7 @@
         }
         if (data.kind === 'order_list' && data.orders && data.orders.length) renderOrderList(data.orders);
         if (data.kind === 'recommend' && data.products && data.products.length) renderProducts(data.products);
+        if (data.kind === 'collections' && data.collections && data.collections.length) renderCollections(data.collections);
         if (waReady() && (data.kind === 'unresolved' || data.kind === 'limit' || data.kind === 'recommend_locked')) offerWhatsApp(payload.message || 'my question');
         // Offer the saved questions again so the next question is one tap.
         showSuggestions();
@@ -925,6 +988,30 @@
       card.innerHTML = imgHtml +
         '<div class="sa-card-info"><div class="sa-card-title">' + escapeHtml(p.title) + '</div>' +
         '<div class="sa-card-price">' + escapeHtml(p.price || '') + '</div></div>';
+      wrap.appendChild(card);
+    });
+    body.appendChild(wrap); body.scrollTop = body.scrollHeight;
+  }
+
+  /**
+   * The store's categories as tappable cards. Tapping one asks for its
+   * products rather than sending the shopper out of the chat — leaving the
+   * conversation is what the widget exists to avoid.
+   */
+  function renderCollections(collections) {
+    var wrap = el('div', 'sa-products');
+    collections.forEach(function (c) {
+      var card = el('button', 'sa-card sa-col-card');
+      var imgHtml = c.image
+        ? '<div class="sa-card-img" style="background-image:url(' + encodeURI(c.image) + ')"></div>'
+        : '<div class="sa-card-img sa-card-noimg">' + escapeHtml((c.title || '?').charAt(0).toUpperCase()) + '</div>';
+      card.innerHTML = imgHtml +
+        '<div class="sa-card-info"><div class="sa-card-title">' + escapeHtml(c.title) + '</div>' +
+        '<div class="sa-card-price">' + escapeHtml(String(c.count || '')) + ' items</div></div>';
+      card.addEventListener('click', function () {
+        user(c.title);
+        post({ intent: 'collection_products', handle: c.handle });
+      });
       wrap.appendChild(card);
     });
     body.appendChild(wrap); body.scrollTop = body.scrollHeight;

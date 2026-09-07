@@ -219,3 +219,141 @@ export async function fetchProductExamples(
     return [];
   }
 }
+
+/* ---- Collection browsing --------------------------------------------------
+ * A shopper who cannot describe what they want in words can tap through the
+ * store's own collections instead. This is plain catalogue browsing — no model
+ * is involved, so it costs nothing beyond the Admin API call.
+ */
+
+export type CollectionRec = {
+  title: string;
+  handle: string;
+  image: string | null;
+  count: number;
+  url: string;
+};
+
+const COLLECTIONS_QUERY = /* GraphQL */ `
+  query Collections($first: Int!) {
+    collections(first: $first, sortKey: TITLE) {
+      edges {
+        node {
+          title
+          handle
+          image { url }
+          productsCount { count }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * The store's collections, largest first so the useful ones lead.
+ *
+ * Empty collections are dropped: tapping into one and finding nothing is worse
+ * than never being offered it.
+ */
+export async function fetchCollections(
+  shopDomain: string,
+  accessToken: string,
+  limit = 12
+): Promise<CollectionRec[]> {
+  try {
+    const res = await fetch(
+      `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': accessToken,
+        },
+        body: JSON.stringify({
+          query: COLLECTIONS_QUERY,
+          variables: { first: Math.min(Math.max(limit, 1), 50) },
+        }),
+      }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const nodes = (data?.data?.collections?.edges ?? []).map((e: any) => e.node);
+    return nodes
+      .map((n: any) => ({
+        title: String(n?.title ?? '').trim(),
+        handle: String(n?.handle ?? ''),
+        image: n?.image?.url ?? null,
+        count: Number(n?.productsCount?.count ?? 0),
+        url: `https://${shopDomain}/collections/${n?.handle ?? ''}`,
+      }))
+      .filter((c: CollectionRec) => c.title && c.handle && c.count > 0)
+      .sort((a: CollectionRec, b: CollectionRec) => b.count - a.count)
+      .slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+const COLLECTION_PRODUCTS_QUERY = /* GraphQL */ `
+  query CollectionProducts($q: String!, $first: Int!) {
+    collections(first: 1, query: $q) {
+      edges {
+        node {
+          title
+          products(first: $first, sortKey: BEST_SELLING) {
+            edges {
+              node {
+                title
+                handle
+                onlineStoreUrl
+                featuredImage { url }
+                images(first: 1) { edges { node { url } } }
+                priceRangeV2 { minVariantPrice { amount currencyCode } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+/** Products inside one collection, best sellers first. */
+export async function fetchCollectionProducts(
+  shopDomain: string,
+  accessToken: string,
+  handle: string,
+  limit = 6
+): Promise<{ title: string; products: ProductRec[] }> {
+  try {
+    const res = await fetch(
+      `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': accessToken,
+        },
+        body: JSON.stringify({
+          query: COLLECTION_PRODUCTS_QUERY,
+          // Quoted so a handle with a dash is one term rather than a negation.
+          variables: {
+            q: `handle:"${handle.replace(/"/g, '')}"`,
+            first: Math.min(Math.max(limit, 1), 20),
+          },
+        }),
+      }
+    );
+    if (!res.ok) return { title: '', products: [] };
+    const data = await res.json();
+    const col = data?.data?.collections?.edges?.[0]?.node;
+    if (!col) return { title: '', products: [] };
+    const nodes = (col?.products?.edges ?? []).map((e: any) => e.node);
+    return {
+      title: String(col.title ?? ''),
+      products: nodes.map((n: any) => toRec(n, shopDomain)),
+    };
+  } catch {
+    return { title: '', products: [] };
+  }
+}

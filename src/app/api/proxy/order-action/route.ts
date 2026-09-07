@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAppProxySignature } from '@/lib/auth/appProxy';
 import { getShopToken } from '@/lib/auth/session';
 import { lookupOrderItems } from '@/lib/shopify/orders';
+import { quickActionEnabled, ACTION_OFF } from '@/lib/shopQuickActions';
 import { db, schema } from '@/lib/db';
 import { and, eq, gte, sql } from 'drizzle-orm';
 
@@ -30,6 +31,19 @@ export async function POST(req: NextRequest) {
   if (!shopDomain) return NextResponse.json({ error: 'missing shop' }, { status: 400 });
 
   const body = await req.json().catch(() => ({}));
+
+  // Respect the merchant's chat-button settings before doing any lookup: the
+  // widget hides these buttons, but hiding markup is not enforcement.
+  const needs =
+    body.action === 'reorder'
+      ? 'reorder'
+      : body.action === 'cancel_lookup' || body.action === 'cancel_submit'
+        ? 'cancel'
+        : null;
+  if (needs && !(await quickActionEnabled(shopDomain, needs))) {
+    return NextResponse.json({ kind: 'order_action_error', text: ACTION_OFF.text });
+  }
+
   const token = await getShopToken(shopDomain);
   if (!token) {
     return NextResponse.json({

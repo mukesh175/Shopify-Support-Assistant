@@ -5,7 +5,12 @@ import { lookupOrder, listOrdersByEmail } from '@/lib/shopify/orders';
 import { answerFromKnowledge, extractKeywords, rankProducts } from '@/lib/ai/answer';
 import { getActivePlan } from '@/lib/shopify/billing';
 import { PLANS } from '@/lib/plans';
-import { recommendProducts } from '@/lib/shopify/products';
+import {
+  recommendProducts,
+  fetchCollections,
+  fetchCollectionProducts,
+} from '@/lib/shopify/products';
+import { quickActionEnabled, ACTION_OFF } from '@/lib/shopQuickActions';
 import { db, schema } from '@/lib/db';
 import { and, eq, gte, sql } from 'drizzle-orm';
 
@@ -46,12 +51,34 @@ export async function POST(req: NextRequest) {
     message?: string;
     orderName?: string;
     email?: string;
-    intent?: 'order' | 'orders_by_email' | 'faq' | 'product';
+    intent?:
+      | 'order'
+      | 'orders_by_email'
+      | 'faq'
+      | 'product'
+      | 'collections'
+      | 'collection_products';
+    handle?: string;
   };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'bad json' }, { status: 400 });
+  }
+
+  // ---- Merchant has turned this button off ----
+  // The widget hides it, but a stale page or a hand-made request could still
+  // ask, so the answer comes from the setting rather than from the markup.
+  const gated = {
+    order: 'order',
+    orders_by_email: 'order',
+    product: 'product',
+    collections: 'collections',
+    collection_products: 'collections',
+  } as const;
+  const gate = body.intent ? gated[body.intent as keyof typeof gated] : undefined;
+  if (gate && !(await quickActionEnabled(shopDomain, gate))) {
+    return NextResponse.json(ACTION_OFF);
   }
 
   // ---- List orders by email (customer doesn't know order number) ----
@@ -105,6 +132,46 @@ export async function POST(req: NextRequest) {
       text,
       timeline: order.found ? order.timeline : undefined,
       trackingUrl: order.trackingUrls?.[0] ?? undefined,
+    });
+  }
+
+  // ---- Browse collections ----
+  // Plain catalogue browsing: no model runs, so this is not counted against
+  // the shop's monthly recommendation allowance.
+  if (body.intent === 'collections') {
+    const token = await getShopToken(shopDomain);
+    if (!token) {
+      return NextResponse.json({ kind: 'error', text: 'App not connected.' });
+    }
+    const collections = await fetchCollections(shopDomain, token);
+    return NextResponse.json({
+      kind: 'collections',
+      text: collections.length
+        ? 'Here is what we have — pick a category:'
+        : "I couldn't load our categories right now. Tell me what you're looking for instead and I'll search.",
+      collections,
+    });
+  }
+
+  // ---- Products inside one collection ----
+  if (body.intent === 'collection_products') {
+    const handle = (body.handle ?? '').trim();
+    if (!handle) {
+      return NextResponse.json({ error: 'missing handle' }, { status: 400 });
+    }
+    const token = await getShopToken(shopDomain);
+    if (!token) {
+      return NextResponse.json({ kind: 'error', text: 'App not connected.' });
+    }
+    const { title, products } = await fetchCollectionProducts(shopDomain, token, handle);
+    // Deliberately not logged: the monthly cap counts query-log rows, and
+    // tapping through categories costs the shop nothing to answer.
+    return NextResponse.json({
+      kind: 'recommend',
+      text: products.length
+        ? (title ? `Popular in ${title}:` : 'Here are a few to look at:')
+        : "That category looks empty right now. Try another one, or tell me what you're after.",
+      products,
     });
   }
 

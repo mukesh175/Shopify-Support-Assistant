@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken, ensureOfflineToken, getShopToken, errorResponse } from '@/lib/auth/session';
 import { getActivePlan } from '@/lib/shopify/billing';
 import { db, schema } from '@/lib/db';
+import { parseQuickActions, sanitizeQuickActions } from '@/lib/quickActions';
 import { eq } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
@@ -18,7 +19,10 @@ export async function GET(req: NextRequest) {
     const shopDomain = await authed(req);
 
     const [row] = await db
-      .select({ whatsappNumber: schema.shops.whatsappNumber })
+      .select({
+        whatsappNumber: schema.shops.whatsappNumber,
+        quickActions: schema.shops.quickActions,
+      })
       .from(schema.shops)
       .where(eq(schema.shops.shopDomain, shopDomain))
       .limit(1);
@@ -32,6 +36,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       whatsappNumber: row?.whatsappNumber ?? '',
       whatsappHandoff,
+      quickActions: parseQuickActions(row?.quickActions),
     });
   } catch (e) {
     const r = errorResponse(e);
@@ -42,34 +47,56 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const shopDomain = await authed(req);
-    const { whatsappNumber } = await req.json();
+    const payload = await req.json();
 
-    // Saving is itself a paid action — otherwise a Free shop could store a
-    // number now and have it served the moment the plan check is bypassed.
-    const token = await getShopToken(shopDomain);
-    const plan = token ? await getActivePlan(shopDomain, token) : null;
-    if (!plan?.whatsappHandoff) {
-      return NextResponse.json(
-        { error: 'WhatsApp handoff is not included in your current plan. Upgrade to enable it.' },
-        { status: 402 }
-      );
+    // The two settings on this screen save independently: which chat buttons
+    // to show is on every plan, so a Free shop changing them must not run into
+    // the WhatsApp plan gate. Only the keys actually sent are written.
+    const updates: Partial<typeof schema.shops.$inferInsert> = {};
+    let digits: string | undefined;
+
+    if ('whatsappNumber' in payload) {
+      // Saving is itself a paid action — otherwise a Free shop could store a
+      // number now and have it served the moment the plan check is bypassed.
+      const token = await getShopToken(shopDomain);
+      const plan = token ? await getActivePlan(shopDomain, token) : null;
+      if (!plan?.whatsappHandoff) {
+        return NextResponse.json(
+          { error: 'WhatsApp handoff is not included in your current plan. Upgrade to enable it.' },
+          { status: 402 }
+        );
+      }
+
+      // Digits only — this is interpolated into a wa.me URL.
+      digits = String(payload.whatsappNumber ?? '').replace(/[^0-9]/g, '');
+      if (digits && (digits.length < 8 || digits.length > 15)) {
+        return NextResponse.json(
+          { error: 'Enter a valid number with country code, digits only (e.g. 919876543210).' },
+          { status: 400 }
+        );
+      }
+      updates.whatsappNumber = digits || null;
     }
 
-    // Digits only — this is interpolated into a wa.me URL.
-    const digits = String(whatsappNumber ?? '').replace(/[^0-9]/g, '');
-    if (digits && (digits.length < 8 || digits.length > 15)) {
-      return NextResponse.json(
-        { error: 'Enter a valid number with country code, digits only (e.g. 919876543210).' },
-        { status: 400 }
-      );
+    let quickActions;
+    if ('quickActions' in payload) {
+      quickActions = sanitizeQuickActions(payload.quickActions);
+      updates.quickActions = JSON.stringify(quickActions);
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'Nothing to save.' }, { status: 400 });
     }
 
     await db
       .update(schema.shops)
-      .set({ whatsappNumber: digits || null })
+      .set(updates)
       .where(eq(schema.shops.shopDomain, shopDomain));
 
-    return NextResponse.json({ whatsappNumber: digits });
+    return NextResponse.json({
+      ...(digits !== undefined ? { whatsappNumber: digits } : {}),
+      ...(quickActions ? { quickActions } : {}),
+    });
   } catch (e) {
     const r = errorResponse(e);
     return NextResponse.json(r.body, { status: r.status });
