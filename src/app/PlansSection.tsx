@@ -26,34 +26,44 @@ type PlanCard = {
   features: string[];
 };
 
+/**
+ * These must match what src/lib/plans.ts actually enforces — a merchant who
+ * hits a limit the card never mentioned has been misled, and Shopify expects
+ * the listing and the app to agree.
+ *
+ * "Answers" is one pool covering questions, order lookups and recommendations
+ * alike, because that is how the cap is counted. Splitting it into separate
+ * allowances on the card would read as more generous than the app behaves.
+ */
 const PLAN_CARDS: PlanCard[] = [
   {
     id: 'free', name: 'Free', price: '$0',
     features: [
-      '100 answers/mo',
-      'Answers in any language',
-      'Order tracking & returns',
+      '100 answers/mo — questions, orders, recommendations',
+      'Up to 20 product recommendations',
       '20 saved Q&As',
-      'Product recommendations',
+      "Replies in your customer's language",
+      'Order tracking, returns & cancellations',
     ],
   },
   {
     id: 'starter', name: 'Starter', price: '$9', cadence: '/mo', popular: true,
     features: [
       '1,000 answers/mo',
+      'Up to 200 product recommendations',
+      'Unlimited saved Q&As',
       'WhatsApp handoff',
       'Damage photos with AI review',
-      'Unlimited saved Q&As',
       'Everything in Free',
     ],
   },
   {
     id: 'pro', name: 'Pro', price: '$19', cadence: '/mo',
     features: [
-      'Unlimited answers',
+      'Unlimited answers & recommendations',
+      'Unlimited saved Q&As',
       'Email inbox with AI drafts',
       'Remove Zappy branding',
-      'Unlimited recommendations',
       'Everything in Starter',
     ],
   },
