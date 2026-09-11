@@ -293,9 +293,19 @@ export default function HomePage() {
               <BlockStack gap="200">
                 <Text as="h3" variant="headingSm">Appearance</Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  Chat buttons, WhatsApp handoff, and widget settings.
+                  Chat buttons and WhatsApp here; colour, icon and greeting in your theme.
                 </Text>
-                <InlineStack><Button url="/settings">Open settings</Button></InlineStack>
+                {/* The theme editor holds half of the widget's settings, and
+                    once setup is finished nothing else on this page links to
+                    it — so this stays put whether or not the widget is live. */}
+                <InlineStack gap="200" wrap>
+                  <Button url="/settings">Open settings</Button>
+                  {setup?.enableWidgetUrl && (
+                    <Button url={setup.enableWidgetUrl} target="_blank" variant="plain">
+                      Customize in theme editor
+                    </Button>
+                  )}
+                </InlineStack>
               </BlockStack>
             </Card>
           </InlineGrid>
