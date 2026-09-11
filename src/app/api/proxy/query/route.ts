@@ -234,13 +234,14 @@ async function handleQuery(req: NextRequest) {
       rank: rankProducts,
     });
 
-    await logQuery(shopDomain, request, `${products.length} products`, 'recommend', products.length > 0);
+    const logId = await logQuery(shopDomain, request, `${products.length} products`, 'recommend', products.length > 0);
     return NextResponse.json({
       kind: 'recommend',
       text: products.length
         ? 'Here are a few that might fit:'
         : "I couldn't find a good match. Try different words, or browse the store.",
       products,
+      logId,
     });
   }
 
@@ -295,23 +296,37 @@ async function handleQuery(req: NextRequest) {
     ? "I'm not sure about that one — I've noted it so the team can follow up. You can also email us directly."
     : text;
 
-  await logQuery(shopDomain, message, finalText, unresolved ? 'unresolved' : 'faq', !unresolved);
+  const logId = await logQuery(shopDomain, message, finalText, unresolved ? 'unresolved' : 'faq', !unresolved);
   return NextResponse.json({
     kind: unresolved ? 'unresolved' : 'faq',
     text: finalText,
+    logId,
   });
 }
 
+/**
+ * Record the exchange, and hand back the row id.
+ *
+ * The id goes to the widget so the shopper can rate that specific answer —
+ * without it there is nothing to attach a 👍/👎 to. Null when logging failed,
+ * which simply means no rating buttons: a lost rating must never cost the
+ * shopper their answer.
+ */
 async function logQuery(
   shopDomain: string,
   question: string,
   answer: string,
   kind: string,
   resolved: boolean
-) {
+): Promise<number | null> {
   try {
-    await db.insert(schema.queryLogs).values({ shopDomain, question, answer, kind, resolved });
+    const [row] = await db
+      .insert(schema.queryLogs)
+      .values({ shopDomain, question, answer, kind, resolved })
+      .returning({ id: schema.queryLogs.id });
+    return row?.id ?? null;
   } catch {
     // logging must never break the customer response
+    return null;
   }
 }

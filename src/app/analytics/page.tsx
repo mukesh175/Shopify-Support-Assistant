@@ -12,6 +12,8 @@ type Analytics = {
   resolved: number;
   deflectionRate: number;
   hoursSaved: number;
+  satisfaction: number | null;
+  ratedCount: number;
   breakdown: { orderStatus: number; faq: number; unresolved: number };
   trend: { day: string; count: number }[];
   topUnanswered: { question: string; count: number }[];
@@ -74,6 +76,11 @@ export default function AnalyticsPage() {
                     <Stat label="Questions handled" value={String(data.total)} />
                     <Stat label="Auto-answered" value={String(data.resolved)} sub={`${data.deflectionRate}% deflection`} />
                     <Stat label="Est. hours saved" value={`${data.hoursSaved}h`} sub="~3 min per answer" />
+                    <Stat
+                      label="Rated helpful"
+                      value={data.satisfaction === null ? "—" : `${data.satisfaction}%`}
+                      sub={data.ratedCount ? `${data.ratedCount} shopper rating${data.ratedCount === 1 ? "" : "s"}` : "No ratings yet"}
+                    />
                   </InlineStack>
                 </BlockStack>
               </Card>

@@ -26,7 +26,9 @@ export async function GET(req: NextRequest) {
         count(*) FILTER (WHERE resolved = true)::int AS resolved,
         count(*) FILTER (WHERE kind = 'order_status')::int AS order_status,
         count(*) FILTER (WHERE kind = 'faq')::int AS faq,
-        count(*) FILTER (WHERE kind = 'unresolved')::int AS unresolved
+        count(*) FILTER (WHERE kind = 'unresolved')::int AS unresolved,
+        count(*) FILTER (WHERE rating = 'up')::int AS rated_up,
+        count(*) FILTER (WHERE rating IS NOT NULL)::int AS rated
       FROM query_logs
       WHERE shop_domain = ${shopDomain}
         AND created_at >= ${monthStart.toISOString()}
@@ -36,6 +38,12 @@ export async function GET(req: NextRequest) {
     const total = Number(t.total ?? 0);
     const resolved = Number(t.resolved ?? 0);
     const deflectionRate = total > 0 ? Math.round((resolved / total) * 100) : 0;
+
+    // Shopper ratings. Null, not zero, when nobody has rated yet — 'no data'
+    // and 'everyone disliked it' must never read the same on a dashboard.
+    const rated = Number(t.rated ?? 0);
+    const ratedUp = Number(t.rated_up ?? 0);
+    const satisfaction = rated > 0 ? Math.round((ratedUp / rated) * 100) : null;
     const hoursSaved = Math.round((resolved * MINUTES_SAVED_PER_DEFLECTION) / 6) / 10; // 1 decimal
 
     // Daily trend, last 14 days

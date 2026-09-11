@@ -151,6 +151,17 @@
 .sa-row.sa-user { align-self: flex-end; align-items: flex-end; }
 .sa-meta { font-size: 11px; color: #9a9da2; padding: 0 4px; }
 
+/* "Was this helpful?" — deliberately quiet. It sits under the answer at the
+   same weight as the timestamp, so it reads as an offer rather than a demand. */
+.sa-rate { display: flex; align-items: center; gap: 6px; padding: 2px 4px; }
+.sa-rate-q, .sa-rate-done { font-size: 11px; color: #9a9da2; }
+.sa-rate-btn {
+  border: 1px solid #ececf0; background: #fff; border-radius: 999px;
+  padding: 2px 8px; font-size: 12px; line-height: 1.4; cursor: pointer;
+  transition: border-color .12s ease, transform .12s ease;
+}
+.sa-rate-btn:hover { border-color: #c9ccd3; transform: translateY(-1px); }
+
 .sa-msg {
   padding: 10px 14px; border-radius: 16px;
   font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;

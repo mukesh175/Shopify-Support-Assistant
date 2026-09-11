@@ -509,13 +509,17 @@
       })
       .then(function (data) {
         typing.remove();
-        bot(data.text || 'Sorry, something went wrong.');
+        var row = bot(data.text || 'Sorry, something went wrong.');
         if (data.kind === 'order_status' && data.timeline && data.timeline.length) {
           renderTimeline(data.timeline, data.trackingUrl);
         }
         if (data.kind === 'order_list' && data.orders && data.orders.length) renderOrderList(data.orders);
         if (data.kind === 'recommend' && data.products && data.products.length) renderProducts(data.products);
         if (data.kind === 'collections' && data.collections && data.collections.length) renderCollections(data.collections);
+        // Only answers the model actually composed are worth rating. An order
+        // lookup either found the order or did not — a thumbs-down there tells
+        // the merchant nothing they can fix.
+        if (data.logId) askRating(row, data.logId);
         if (waReady() && (data.kind === 'unresolved' || data.kind === 'limit' || data.kind === 'recommend_locked')) offerWhatsApp(payload.message || 'my question');
         // Offer the saved questions again so the next question is one tap.
         showSuggestions();
@@ -1004,6 +1008,42 @@
       wrap.appendChild(card);
     });
     body.appendChild(wrap); body.scrollTop = body.scrollHeight;
+  }
+
+  /* ---- Was that answer any good? -----------------------------------------
+   * The merchant otherwise only sees our own opinion of whether we answered.
+   * One tap from the shopper is the only honest measure, so it is asked
+   * quietly, once, under the answer — never as a popup or a required step.
+   */
+  var FEEDBACK_URL = PROXY.replace(/\/query$/, '/feedback');
+
+  function askRating(row, logId) {
+    if (!row || !logId) return;
+    var wrap = el('div', 'sa-rate');
+    wrap.appendChild(el('span', 'sa-rate-q', 'Was this helpful?'));
+
+    function send(rating) {
+      // Replace the buttons immediately: the shopper has done their part, and
+      // waiting on the network to say thank you would be strange.
+      wrap.innerHTML = '';
+      wrap.appendChild(el('span', 'sa-rate-done', rating === 'up' ? 'Thanks! 🙏' : 'Thanks — we’ll work on that.'));
+      fetch(FEEDBACK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logId: logId, rating: rating }),
+      }).catch(function () { /* a lost rating is not worth telling anyone about */ });
+    }
+
+    [['up', '👍'], ['down', '👎']].forEach(function (pair) {
+      var b = el('button', 'sa-rate-btn', pair[1]);
+      b.type = 'button';
+      b.setAttribute('aria-label', pair[0] === 'up' ? 'This answer helped' : 'This answer did not help');
+      b.addEventListener('click', function () { send(pair[0]); });
+      wrap.appendChild(b);
+    });
+
+    row.appendChild(wrap);
+    body.scrollTop = body.scrollHeight;
   }
 
   /**

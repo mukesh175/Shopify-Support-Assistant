@@ -45,6 +45,11 @@ export const shops = pgTable('shops', {
   // (see src/lib/quickActions.ts). Null means the merchant has never touched
   // the setting, which reads as "all of them".
   quickActions: text('quick_actions'),
+  // Last time the storefront widget asked us for its config. This is how the
+  // app knows the theme embed is actually switched on — there is no Admin API
+  // that will tell us. Written at most hourly, so a busy shop does not pay for
+  // a database round trip on every page view.
+  widgetLastSeenAt: timestamp('widget_last_seen_at'),
 });
 
 /**
@@ -191,6 +196,10 @@ export const queryLogs = pgTable(
     // knowledge base. Distinct from `resolved`, which records whether the
     // assistant managed to answer at the time.
     handled: boolean('handled').default(false).notNull(),
+    // What the shopper thought of the answer: 'up' | 'down', null if they
+    // never said. This is the only signal that comes from the customer rather
+    // than from us, which is what makes it worth showing a merchant.
+    rating: text('rating'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (t) => ({
