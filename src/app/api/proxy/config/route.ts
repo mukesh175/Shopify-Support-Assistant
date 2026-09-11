@@ -52,11 +52,26 @@ export async function GET(req: NextRequest) {
     // Which chat buttons this merchant wants shown. Read before the plan check
     // so the setting is honoured even for a shop whose token has gone stale.
     const [buttons] = await db
-      .select({ quickActions: schema.shops.quickActions })
+      .select({
+        quickActions: schema.shops.quickActions,
+        widgetLastSeenAt: schema.shops.widgetLastSeenAt,
+      })
       .from(schema.shops)
       .where(eq(schema.shops.shopDomain, shopDomain))
       .limit(1);
     const actions = parseQuickActions(buttons?.quickActions);
+
+    // This request is proof the theme embed is switched on — there is no Admin
+    // API that will tell us, and the merchant's Home page says so. Stamped at
+    // most hourly: a shop with traffic would otherwise buy a database write on
+    // every single page view to learn something we already knew.
+    const seenAt = buttons?.widgetLastSeenAt;
+    if (!seenAt || Date.now() - new Date(seenAt).getTime() > 60 * 60 * 1000) {
+      db.update(schema.shops)
+        .set({ widgetLastSeenAt: new Date() })
+        .where(eq(schema.shops.shopDomain, shopDomain))
+        .catch(() => { /* a missed heartbeat must never cost the shopper their widget */ });
+    }
 
     const token = await getShopToken(shopDomain);
     let productExamples: string[] = [];
