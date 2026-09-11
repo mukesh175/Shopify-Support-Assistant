@@ -17,6 +17,7 @@ type Home = {
     faqCount: number;
     whatsappSet: boolean;
     whatsappAvailable: boolean;
+    enableWidgetUrl: string;
   };
   stats: {
     answered: number;
@@ -48,9 +49,10 @@ function Stat({ value, label, sub }: { value: string; label: string; sub?: strin
  * whole point — it answers "did that work?" without them having to go and look.
  */
 function Step({
-  done, title, description, action, url,
+  done, title, description, action, url, external, primary,
 }: {
   done: boolean; title: string; description: string; action?: string; url?: string;
+  external?: boolean; primary?: boolean;
 }) {
   return (
     <InlineStack gap="300" blockAlign="start" wrap={false}>
@@ -63,7 +65,17 @@ function Step({
             <Text as="h3" variant="headingSm">{title}</Text>
             <Text as="p" variant="bodySm" tone="subdued">{description}</Text>
           </BlockStack>
-          {!done && action && url && <Button url={url}>{action}</Button>}
+          {!done && action && url && (
+            // The theme editor lives outside our iframe, so it has to open at
+            // the top level rather than inside the embedded app.
+            <Button
+              url={url}
+              target={external ? '_blank' : undefined}
+              variant={primary ? 'primary' : undefined}
+            >
+              {action}
+            </Button>
+          )}
         </InlineStack>
       </Box>
     </InlineStack>
@@ -108,9 +120,13 @@ export default function HomePage() {
       title: 'Turn on the chat widget',
       description: setup?.widgetLive
         ? 'Live on your storefront right now.'
-        : 'Online Store → Themes → Customize → App embeds → enable Zappy.',
-      action: 'How to enable',
-      url: '/settings',
+        : 'Opens your theme editor with Zappy already selected — just press Save.',
+      action: 'Enable on my store',
+      url: setup?.enableWidgetUrl,
+      external: true,
+      // The one step that actually blocks the app from working, so it is the
+      // one that gets the emphasis.
+      primary: true,
     },
     {
       done: !!setup?.whatsappSet,
@@ -156,8 +172,15 @@ export default function HomePage() {
                     ? 'Checking…'
                     : setup?.widgetLive
                       ? 'Your customers can see the assistant on your store.'
-                      : 'Enable the Zappy app embed in your theme to switch it on.'}
+                      : 'Nobody can see the assistant yet. One click switches it on.'}
                 </Text>
+                {!loading && !setup?.widgetLive && setup?.enableWidgetUrl && (
+                  <InlineStack>
+                    <Button variant="primary" url={setup.enableWidgetUrl} target="_blank">
+                      Enable on my store
+                    </Button>
+                  </InlineStack>
+                )}
               </BlockStack>
             </Card>
 

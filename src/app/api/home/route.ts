@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken, ensureOfflineToken, getShopToken, errorResponse } from '@/lib/auth/session';
 import { getActivePlan } from '@/lib/shopify/billing';
+import { appEmbedDeepLink, themeEditorUrl } from '@/lib/shopify/theme-editor';
 import { PLANS } from '@/lib/plans';
 import { db, schema } from '@/lib/db';
 import { and, eq, sql } from 'drizzle-orm';
@@ -80,6 +81,9 @@ export async function GET(req: NextRequest) {
         faqCount: Number(faqCount?.c ?? 0),
         whatsappSet: !!shop?.whatsappNumber,
         whatsappAvailable: plan.whatsappHandoff,
+        // One click to the theme editor with the embed already selected. Built
+        // here because this is where the shop domain is known for certain.
+        enableWidgetUrl: appEmbedDeepLink(shopDomain) ?? themeEditorUrl(shopDomain),
       },
       stats: {
         answered,
