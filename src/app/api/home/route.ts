@@ -4,6 +4,7 @@ import { getActivePlan } from '@/lib/shopify/billing';
 import { appEmbedDeepLink, themeEditorUrl } from '@/lib/shopify/theme-editor';
 import { PLANS } from '@/lib/plans';
 import { db, schema } from '@/lib/db';
+import { COUNTS_AS_USAGE } from '@/lib/usage';
 import { and, eq, sql } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest) {
 
     const stats = await db.execute(sql`
       SELECT
-        count(*)::int AS answered,
+        count(*) FILTER (WHERE ${COUNTS_AS_USAGE})::int AS answered,
         count(*) FILTER (WHERE resolved = true)::int AS resolved,
         count(*) FILTER (WHERE rating = 'up')::int AS rated_up,
         count(*) FILTER (WHERE rating IS NOT NULL)::int AS rated

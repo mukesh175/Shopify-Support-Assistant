@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken, ensureOfflineToken, errorResponse } from '@/lib/auth/session';
 import { db } from '@/lib/db';
+import { COUNTS_AS_USAGE } from '@/lib/usage';
 import { sql } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
@@ -22,7 +23,9 @@ export async function GET(req: NextRequest) {
     // Totals for this month, grouped by kind + resolved
     const totals = await db.execute(sql`
       SELECT
-        count(*)::int AS total,
+        -- A failed AI call is our outage, not a question the shop asked us to
+        -- handle. Counting it would drag their deflection rate down for it.
+        count(*) FILTER (WHERE ${COUNTS_AS_USAGE})::int AS total,
         count(*) FILTER (WHERE resolved = true)::int AS resolved,
         count(*) FILTER (WHERE kind = 'order_status')::int AS order_status,
         count(*) FILTER (WHERE kind = 'faq')::int AS faq,

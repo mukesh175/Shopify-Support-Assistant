@@ -3,7 +3,8 @@ import { verifySessionToken, ensureOfflineToken, getShopToken, errorResponse } f
 import { getActivePlan, pricingPageUrl } from '@/lib/shopify/billing';
 import { APP_HANDLE } from '@/lib/shopify/app-handle';
 import { db, schema } from '@/lib/db';
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { UNCOUNTED_KINDS } from '@/lib/usage';
+import { and, eq, gte, notInArray, sql } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 

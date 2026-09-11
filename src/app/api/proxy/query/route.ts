@@ -11,10 +11,12 @@ import {
   fetchCollectionProducts,
 } from '@/lib/shopify/products';
 import { quickActionEnabled, ACTION_OFF } from '@/lib/shopQuickActions';
+import { UNCOUNTED_KINDS } from '@/lib/usage';
 import { db, schema } from '@/lib/db';
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, eq, gte, notInArray, sql } from 'drizzle-orm';
 
-// Count queries of a given kind this calendar month.
+// Count queries of a given kind this calendar month. Rows that are our own
+// failure never count — see UNCOUNTED_KINDS.
 async function monthlyCount(shopDomain: string, kind?: string): Promise<number> {
   const start = new Date();
   start.setDate(1);
@@ -22,6 +24,7 @@ async function monthlyCount(shopDomain: string, kind?: string): Promise<number> 
   const conds = [
     eq(schema.queryLogs.shopDomain, shopDomain),
     gte(schema.queryLogs.createdAt, start),
+    notInArray(schema.queryLogs.kind, UNCOUNTED_KINDS),
   ];
   if (kind) conds.push(eq(schema.queryLogs.kind, kind));
   const rows = await db
