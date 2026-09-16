@@ -177,9 +177,14 @@ export async function recommendProducts(
   return picked;
 }
 
+// BEST_SELLING belongs to ProductCollectionSortKeys, not ProductSortKeys, so
+// asking for it here was rejected outright — and GraphQL reports that as a 200
+// with an errors array, which every caller below read as "this shop sells
+// nothing". Newest-first is the honest substitute the products connection does
+// offer. Inside a collection, BEST_SELLING is valid and is still used.
 const EXAMPLES_QUERY = /* GraphQL */ `
   query ProductExamples {
-    products(first: 25, sortKey: BEST_SELLING) {
+    products(first: 25, sortKey: CREATED_AT, reverse: true) {
       edges { node { title productType } }
     }
   }
@@ -214,6 +219,10 @@ export async function fetchProductExamples(
     );
     if (!res.ok) return [];
     const data = await res.json();
+    if (data?.errors?.length) {
+      console.error('[products] examples query rejected', JSON.stringify(data.errors).slice(0, 300));
+      return [];
+    }
     const nodes = (data?.data?.products?.edges ?? []).map((e: any) => e.node);
 
     const seen = new Set<string>();
@@ -378,7 +387,7 @@ export async function fetchCollectionProducts(
 
 const FEATURED_QUERY = /* GraphQL */ `
   query FeaturedProducts($first: Int!) {
-    products(first: $first, sortKey: BEST_SELLING) {
+    products(first: $first, sortKey: CREATED_AT, reverse: true) {
       edges {
         node {
           title

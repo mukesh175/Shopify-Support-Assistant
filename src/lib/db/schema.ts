@@ -31,6 +31,11 @@ export const shops = pgTable('shops', {
   // rather than in theme settings so it is never rendered into the storefront
   // HTML of shops whose plan does not include handoff.
   whatsappNumber: text('whatsapp_number'),
+  // Where a shopper is sent when the assistant cannot help and the shop has no
+  // WhatsApp handoff. Deliberately not gated by plan: a shop with no route to a
+  // human is a worse product, and an email address is not a feature worth
+  // charging for.
+  supportEmail: text('support_email'),
   // Random slug identifying this shop's inbound email address. The merchant
   // forwards their support inbox to <slug>@<inbound domain>, and that is how
   // an arriving email is matched back to a shop.

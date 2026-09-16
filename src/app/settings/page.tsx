@@ -13,6 +13,12 @@ import {
 
 export default function SettingsPage() {
   const [number, setNumber] = useState('');
+  // Saves on its own, like the chat buttons: it is on every plan, so it must
+  // not run into the WhatsApp plan gate.
+  const [email, setEmail] = useState('');
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [savedEmail, setSavedEmail] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [allowed, setAllowed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -33,6 +39,7 @@ export default function SettingsPage() {
         if (!res.ok) setError(d.error ?? 'Failed to load settings');
         else {
           setNumber(d.whatsappNumber ?? '');
+          setEmail(d.supportEmail ?? '');
           setAllowed(!!d.whatsappHandoff);
           if (d.quickActions) setActions({ ...defaultQuickActions(), ...d.quickActions });
         }
@@ -63,6 +70,28 @@ export default function SettingsPage() {
       setError(e?.message ?? 'Could not reach server');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveEmail() {
+    setSavingEmail(true);
+    setEmailError(null);
+    setSavedEmail(false);
+    try {
+      const res = await apiFetch('/api/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ supportEmail: email }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) setEmailError(d.error ?? 'Could not save');
+      else {
+        setEmail(d.supportEmail ?? '');
+        setSavedEmail(true);
+      }
+    } catch (e: any) {
+      setEmailError(e?.message ?? 'Could not reach server');
+    } finally {
+      setSavingEmail(false);
     }
   }
 
@@ -142,6 +171,46 @@ export default function SettingsPage() {
                       loading={savingActions}
                       disabled={noneOn}
                     >
+                      Save
+                    </Button>
+                  </InlineStack>
+                </BlockStack>
+              )}
+            </BlockStack>
+          </Card>
+        </Layout.AnnotatedSection>
+
+        <Layout.AnnotatedSection
+          title="Talk to our team"
+          description="When the assistant can't help, customers are offered your support email. Available on every plan — leave it blank to turn the option off."
+        >
+          <Card>
+            <BlockStack gap="400">
+              {emailError && (
+                <Banner tone="critical" onDismiss={() => setEmailError(null)}>
+                  <p>{emailError}</p>
+                </Banner>
+              )}
+              {savedEmail && (
+                <Banner tone="success" onDismiss={() => setSavedEmail(false)}>
+                  <p>Support email saved.</p>
+                </Banner>
+              )}
+              {loading ? (
+                <SkeletonBodyText lines={3} />
+              ) : (
+                <BlockStack gap="400">
+                  <TextField
+                    label="Support email"
+                    type="email"
+                    value={email}
+                    onChange={(v) => { setEmail(v); setSavedEmail(false); }}
+                    autoComplete="email"
+                    placeholder="help@yourstore.com"
+                    helpText="Shown in the chat as “Talk to our team”, and offered whenever the assistant cannot answer."
+                  />
+                  <InlineStack>
+                    <Button variant="primary" onClick={saveEmail} loading={savingEmail}>
                       Save
                     </Button>
                   </InlineStack>

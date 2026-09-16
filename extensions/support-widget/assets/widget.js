@@ -19,6 +19,9 @@
   // cannot leak the feature.
   var WHATSAPP = '';
   function waReady() { return !!WHATSAPP; }
+  // A route to a human that does not depend on the shop's plan. Empty until
+  // /config answers, and the button stays hidden unless the merchant set one.
+  var SUPPORT_EMAIL = '';
   // Photo evidence is a paid feature; off until /config says otherwise, so a
   // slow or failed call never offers something the shop cannot use.
   var PHOTOS_ENABLED = false;
@@ -120,6 +123,7 @@
       '<button data-q="cancel">Cancel an order</button>' +
       '<button data-q="reorder">Buy again</button>' +
       '<button data-q="wa" class="sa-wa-quick" style="display:none">WhatsApp us</button>' +
+      '<button data-q="human" class="sa-human-quick" style="display:none">Talk to our team</button>' +
     '</div>' +
     '<div class="sa-inputbar">' +
       '<input type="text" placeholder="Ask anything…">' +
@@ -165,6 +169,11 @@
             if (typeof cfg.actions[k] === 'boolean') ACTIONS[k] = cfg.actions[k];
           }
           applyActions();
+        }
+        if (cfg && typeof cfg.supportEmail === 'string' && cfg.supportEmail) {
+          SUPPORT_EMAIL = cfg.supportEmail;
+          var humanBtn = panel.querySelector('.sa-human-quick');
+          if (humanBtn) humanBtn.style.display = '';
         }
         if (cfg && typeof cfg.whatsapp === 'string' && cfg.whatsapp) {
           WHATSAPP = cfg.whatsapp.replace(/[^0-9]/g, '');
@@ -457,6 +466,7 @@
       else if (q === 'cancel') { showCancelStart(); }
       else if (q === 'reorder') { showReorderStart(); }
       else if (q === 'wa') { if (waReady()) openWhatsApp('Hi, I need help.'); }
+      else if (q === 'human') { offerHuman(); }
       else if (q === 'find') { showFindChoice(); }
       else { mode = 'faq'; textInput.placeholder = 'Ask anything…'; textInput.focus(); }
     });
@@ -600,7 +610,15 @@
         // lookup either found the order or did not — a thumbs-down there tells
         // the merchant nothing they can fix.
         if (data.logId) askRating(row, data.logId);
-        if (waReady() && (data.kind === 'unresolved' || data.kind === 'limit' || data.kind === 'recommend_locked')) offerWhatsApp(payload.message || 'my question');
+        // When the assistant could not help, offer a person. WhatsApp first
+        // where the shop has it — it is the faster route — and the support
+        // email otherwise, so no shop is left without one.
+        var stuck = data.kind === 'unresolved' || data.kind === 'limit' ||
+          data.kind === 'recommend_locked' || data.kind === 'error';
+        if (stuck) {
+          if (waReady()) offerWhatsApp(payload.message || 'my question');
+          else if (SUPPORT_EMAIL) offerHuman(payload.message || '');
+        }
         // Offer the saved questions again so the next question is one tap.
         showSuggestions();
       })
@@ -1148,6 +1166,26 @@
       wrap.appendChild(card);
     });
     body.appendChild(wrap); body.scrollTop = body.scrollHeight;
+  }
+
+  /**
+   * Hand the shopper to a person.
+   *
+   * The address is shown rather than only linked: plenty of people are not
+   * signed in to a mail client in the browser, and a mailto: that opens
+   * nothing is a dead end. Tapping it still composes a message for anyone who
+   * does have one.
+   */
+  function offerHuman(question) {
+    if (!SUPPORT_EMAIL) return;
+    bot('You can reach our team at ' + SUPPORT_EMAIL + ' and someone will get back to you.');
+    var link = el('a', 'sa-human-btn', '✉️ Email ' + SUPPORT_EMAIL);
+    link.href = 'mailto:' + SUPPORT_EMAIL +
+      (question ? '?subject=' + encodeURIComponent('Question about my order') +
+        '&body=' + encodeURIComponent(question) : '');
+    link.target = '_top';
+    body.appendChild(link);
+    body.scrollTop = body.scrollHeight;
   }
 
   function offerWhatsApp(question) {

@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
       .select({
         quickActions: schema.shops.quickActions,
         widgetLastSeenAt: schema.shops.widgetLastSeenAt,
+        supportEmail: schema.shops.supportEmail,
       })
       .from(schema.shops)
       .where(eq(schema.shops.shopDomain, shopDomain))
@@ -147,6 +148,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       branding, whatsapp, photos, productExamples, suggestions, actions,
       featured,
+      // Read outside the plan check, unlike the WhatsApp number: this one is
+      // available on every plan.
+      supportEmail: buttons?.supportEmail || null,
     });
   } catch {
     return NextResponse.json(fallback);

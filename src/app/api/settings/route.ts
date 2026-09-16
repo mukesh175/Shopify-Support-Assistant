@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     const [row] = await db
       .select({
         whatsappNumber: schema.shops.whatsappNumber,
+        supportEmail: schema.shops.supportEmail,
         quickActions: schema.shops.quickActions,
       })
       .from(schema.shops)
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       whatsappNumber: row?.whatsappNumber ?? '',
+      supportEmail: row?.supportEmail ?? '',
       whatsappHandoff,
       quickActions: parseQuickActions(row?.quickActions),
     });
@@ -78,6 +80,20 @@ export async function PUT(req: NextRequest) {
       updates.whatsappNumber = digits || null;
     }
 
+    // No plan gate: a shop with no route to a human is a worse product, and an
+    // email address is not a feature worth charging for.
+    let supportEmail: string | undefined;
+    if ('supportEmail' in payload) {
+      supportEmail = String(payload.supportEmail ?? '').trim();
+      if (supportEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(supportEmail)) {
+        return NextResponse.json(
+          { error: 'Enter a valid email address, or leave it blank.' },
+          { status: 400 }
+        );
+      }
+      updates.supportEmail = supportEmail || null;
+    }
+
     let quickActions;
     if ('quickActions' in payload) {
       quickActions = sanitizeQuickActions(payload.quickActions);
@@ -95,6 +111,7 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({
       ...(digits !== undefined ? { whatsappNumber: digits } : {}),
+      ...(supportEmail !== undefined ? { supportEmail } : {}),
       ...(quickActions ? { quickActions } : {}),
     });
   } catch (e) {
