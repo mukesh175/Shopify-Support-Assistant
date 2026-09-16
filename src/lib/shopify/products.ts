@@ -378,7 +378,7 @@ export async function fetchCollectionProducts(
 
 const FEATURED_QUERY = /* GraphQL */ `
   query FeaturedProducts($first: Int!) {
-    products(first: $first, sortKey: BEST_SELLING, query: "status:active") {
+    products(first: $first, sortKey: BEST_SELLING) {
       edges {
         node {
           title
@@ -428,6 +428,14 @@ export async function fetchFeaturedProducts(
     );
     if (!res.ok) return [];
     const data = await res.json();
+    // GraphQL reports a bad query as 200 with an `errors` array, so without
+    // this an invalid field or argument looks exactly like a shop that sells
+    // nothing — which is how a `query:` argument this connection rejects sat
+    // unnoticed, writing an empty deck into every shop's cache.
+    if (data?.errors?.length) {
+      console.error('[products] featured query rejected', JSON.stringify(data.errors).slice(0, 300));
+      return [];
+    }
     const nodes = (data?.data?.products?.edges ?? []).map((e: any) => e.node);
     return nodes
       .map((n: any) => toRec(n, shopDomain))

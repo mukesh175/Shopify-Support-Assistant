@@ -76,6 +76,11 @@
 
   var panel = el('div', 'sa-panel');
   panel.style[POSITION] = '20px';
+  // The merchant already picks these two in the theme editor, and they already
+  // pair them on the launcher — so the panel can use the same pairing without
+  // any risk of unreadable text on an unusual colour.
+  panel.style.setProperty('--sa-accent', ACCENT);
+  panel.style.setProperty('--sa-text', TEXTCOLOR);
   panel.innerHTML =
     '<div class="sa-header">' +
       '<div class="sa-ident">' +
@@ -84,7 +89,9 @@
         // twice is noise to a screen reader.
         (LOGO
           ? '<img class="sa-avatar sa-logo" src="' + escapeHtml(LOGO) + '" alt="">'
-          : '<span class="sa-avatar" style="background:' + ACCENT + ';color:' + TEXTCOLOR + '">' +
+          // Reversed against the header, which now carries the accent itself —
+          // an accent-on-accent initial was simply invisible.
+          : '<span class="sa-avatar" style="background:' + TEXTCOLOR + ';color:' + ACCENT + '">' +
             escapeHtml((BRAND || '?').charAt(0).toUpperCase()) + '</span>') +
         '<span class="sa-brandname">' + escapeHtml(BRAND) + '</span>' +
       '</div>' +
@@ -273,6 +280,10 @@
     wrap.appendChild(el('div', 'sa-welcome-sub', GREETING));
     if (FEATURED.length >= 2) wrap.appendChild(productFan());
     body.appendChild(wrap);
+    // The branded colour block belongs to the opening screen only. Once real
+    // messages start it clears, so no bubble ever has to stay readable on a
+    // colour the merchant chose for a button.
+    panel.classList.add('sa-greeting');
   }
 
   /**
@@ -300,9 +311,13 @@
       card.href = p.url;
       card.target = '_top';
       card.setAttribute('aria-label', p.title);
+      // The photo sits in its own clipping box so it can scale on hover
+      // without growing the card or spilling over its rounded corners.
+      var frame = el('span', 'sa-fan-frame');
       var img = el('span', 'sa-fan-img');
       img.style.backgroundImage = 'url("' + String(p.image).replace(/"/g, '') + '")';
-      card.appendChild(img);
+      frame.appendChild(img);
+      card.appendChild(frame);
       card.appendChild(el('span', 'sa-fan-title', p.title));
       fan.appendChild(card);
     });
@@ -321,6 +336,7 @@
   function clearWelcome() {
     var w = body.querySelector('.sa-welcome');
     if (w) w.remove();
+    panel.classList.remove('sa-greeting');
   }
 
   function open() {

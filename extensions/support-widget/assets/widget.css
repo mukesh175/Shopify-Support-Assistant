@@ -66,10 +66,31 @@
   width: 620px; height: calc(100vh - 130px);
 }
 
+/* The panel wears the merchant's colour: the header always, and the opening
+   screen below it until a real conversation starts. The pair of colours comes
+   from the theme editor, where the merchant already chose them together for
+   the launcher — so contrast is theirs, not a guess of ours. */
 .sa-header {
-  padding: 14px 16px; background: #fff; border-bottom: 1px solid #f0f0f2;
+  padding: 14px 16px; background: var(--sa-accent, #fff);
+  color: var(--sa-text, #1a1a1a);
   display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  position: relative; z-index: 2;
 }
+
+/* The colour block behind the greeting, fading out before the suggestions so
+   they keep their white background and stay legible on any accent. */
+.sa-panel.sa-greeting::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 330px;
+  background: linear-gradient(180deg,
+    var(--sa-accent, #fff) 0%,
+    var(--sa-accent, #fff) 58%,
+    transparent 100%);
+  pointer-events: none; z-index: 0;
+}
+.sa-panel.sa-greeting .sa-welcome-title,
+.sa-panel.sa-greeting .sa-welcome-sub { color: var(--sa-text, #1a1a1a); }
+/* Slightly lifted so the subtitle stays readable on a mid-tone accent. */
+.sa-panel.sa-greeting .sa-welcome-sub { opacity: .88; }
 .sa-ident { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .sa-avatar {
   width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
@@ -85,18 +106,21 @@
   display: block; padding: 0 !important; border: 0 !important;
 }
 .sa-brandname {
-  font-size: 15px; font-weight: 600; color: #1a1a1a;
+  font-size: 15px; font-weight: 600; color: var(--sa-text, #1a1a1a);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .sa-hactions { display: flex; gap: 2px; flex-shrink: 0; }
 .sa-expand, .sa-close, .sa-hist-btn, .sa-new-btn {
-  background: none; border: none; color: #6b7177; cursor: pointer;
+  background: none; border: none; color: var(--sa-text, #6b7177); opacity: .85;
+  cursor: pointer;
   width: 30px; height: 30px; border-radius: 50%; padding: 0;
   display: flex; align-items: center; justify-content: center;
   transition: background .12s ease, color .12s ease;
 }
 .sa-expand:hover, .sa-close:hover, .sa-hist-btn:hover, .sa-new-btn:hover {
-  background: #f2f3f5; color: #1a1a1a;
+  /* Neutral grey tints toward readable on both a dark and a light accent,
+     where a fixed hover colour would vanish into one of them. */
+  background: rgba(127,127,127,.22); opacity: 1;
 }
 .sa-expand:focus, .sa-close:focus, .sa-hist-btn:focus, .sa-new-btn:focus { outline: none; }
 
@@ -133,7 +157,10 @@
 
 .sa-body {
   flex: 1; overflow-y: auto; padding: 16px;
-  display: flex; flex-direction: column; gap: 10px; background: #fff;
+  display: flex; flex-direction: column; gap: 10px;
+  /* Transparent so the greeting colour block behind it shows through; the
+     panel itself supplies the white underneath. */
+  background: transparent; position: relative; z-index: 1;
 }
 /* The transcript is a scrolling column, so its rows must keep their own height
    rather than being squeezed to fit — otherwise buttons and controls near the
@@ -322,10 +349,18 @@
   box-shadow: 0 6px 18px rgba(0,0,0,.10);
   transition: transform .18s ease, box-shadow .18s ease;
 }
-.sa-fan-img {
+/* The frame clips; the photo inside it scales. Zooming the photo directly
+   would push it past the card's rounded corners. */
+.sa-fan-frame {
   display: block; width: 100%; height: 68px; border-radius: 8px;
-  background: #eef0f3 center/cover no-repeat;
+  overflow: hidden; background: #eef0f3;
 }
+.sa-fan-img {
+  display: block; width: 100%; height: 100%;
+  background: center/cover no-repeat;
+  transition: transform .28s ease;
+}
+.sa-fan-card:hover .sa-fan-img { transform: scale(1.14); }
 .sa-fan-title {
   display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   margin-top: 6px; font-size: 10.5px; line-height: 1.3;
@@ -348,7 +383,8 @@
 .sa-fan-pair .sa-fan-1:hover { transform: rotate(8deg) translate(38px, -2px); }
 
 @media (prefers-reduced-motion: reduce) {
-  .sa-fan-card, .sa-fan-card:hover { transition: none; }
+  .sa-fan-card, .sa-fan-card:hover, .sa-fan-img { transition: none; }
+  .sa-fan-card:hover .sa-fan-img { transform: none; }
 }
 
 /* Order timeline stepper */

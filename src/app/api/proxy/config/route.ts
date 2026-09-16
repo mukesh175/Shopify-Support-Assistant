@@ -107,19 +107,27 @@ export async function GET(req: NextRequest) {
       const fresh = cached?.productExamplesAt &&
         Date.now() - new Date(cached.productExamplesAt).getTime() < EXAMPLES_TTL_MS;
 
+      // The timestamp alone decides freshness. Treating an empty result as a
+      // miss meant a shop whose catalogue genuinely yields nothing bought two
+      // Admin API calls on every single page view, forever.
+      let cacheHit = false;
       if (fresh) {
+        cacheHit = true;
         if (cached?.productExamples) {
-          try { productExamples = JSON.parse(cached.productExamples); } catch { /* refetch below */ }
+          try { productExamples = JSON.parse(cached.productExamples); } catch { cacheHit = false; }
         }
         if (cached?.featuredProducts) {
-          try { featured = JSON.parse(cached.featuredProducts); } catch { /* refetch below */ }
+          try { featured = JSON.parse(cached.featuredProducts); } catch { cacheHit = false; }
+        } else {
+          // Written before this column existed — refresh once to fill it in.
+          cacheHit = false;
         }
       }
 
       // Both come from the same catalogue and go stale together, so one miss
       // refreshes the pair — two separate clocks would mean two Admin API
       // round trips on a page load that should usually make none.
-      if (!productExamples.length || !featured.length) {
+      if (!cacheHit) {
         [productExamples, featured] = await Promise.all([
           fetchProductExamples(shopDomain, token),
           fetchFeaturedProducts(shopDomain, token),
