@@ -449,10 +449,51 @@
   var quickWrap = panel.querySelector('.sa-quickwrap');
   var quickRow = panel.querySelector('.sa-quick');
 
+  /**
+   * Arrows for anyone driving with a mouse.
+   *
+   * A fade says the row continues, but it does not say it can be moved — with
+   * three buttons showing and five more past the edge, someone with no
+   * touchscreen has no reason to try dragging a row of buttons. They are
+   * hidden from assistive tech and from the tab order: keyboard users reach
+   * the buttons themselves, and focusing one scrolls it into view already.
+   */
+  var CHEV = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
+
+  function navButton(dir) {
+    var b = el('button', 'sa-quick-nav sa-quick-' + (dir < 0 ? 'prev' : 'next'));
+    b.type = 'button';
+    b.innerHTML = CHEV;
+    b.setAttribute('aria-hidden', 'true');
+    b.tabIndex = -1;
+    b.addEventListener('click', function () {
+      // Most of a screenful, so a tap always lands on a fresh set of buttons
+      // but never skips one clean past the edge.
+      //
+      // Assigned rather than scrollBy(): the animation comes from CSS
+      // scroll-behavior, so where that is unsupported the row still moves
+      // instead of silently doing nothing.
+      var step = dir * Math.max(120, quickRow.clientWidth * 0.7);
+      var max = quickRow.scrollWidth - quickRow.clientWidth;
+      quickRow.scrollLeft = Math.max(0, Math.min(max, quickRow.scrollLeft + step));
+      // Recomputed here rather than left to the scroll event alone: this is
+      // the one case where the arrow that was just clicked may need to
+      // disappear, and it should not depend on an event to do it.
+      updateQuickFade();
+    });
+    return b;
+  }
+
+  var quickPrev = quickWrap ? quickWrap.appendChild(navButton(-1)) : null;
+  var quickNext = quickWrap ? quickWrap.appendChild(navButton(1)) : null;
+
   function updateQuickFade() {
     if (!quickWrap || !quickRow) return;
     var more = quickRow.scrollWidth - quickRow.clientWidth - quickRow.scrollLeft > 2;
+    var back = quickRow.scrollLeft > 2;
     quickWrap.classList.toggle('sa-more', more);
+    quickWrap.classList.toggle('sa-back', back);
   }
 
   quickRow.addEventListener('scroll', updateQuickFade);

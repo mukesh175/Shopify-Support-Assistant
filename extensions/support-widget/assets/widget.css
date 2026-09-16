@@ -247,6 +247,35 @@
   pointer-events: none; opacity: 0; transition: opacity .15s ease;
 }
 .sa-quickwrap.sa-more::after { opacity: 1; }
+/* The left edge needs the same treatment once the row has been scrolled, or
+   the buttons behind you vanish into a hard cut. */
+.sa-quickwrap::before {
+  content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 38px;
+  background: linear-gradient(270deg, rgba(255,255,255,0), #fff 72%);
+  pointer-events: none; opacity: 0; transition: opacity .15s ease; z-index: 1;
+}
+.sa-quickwrap.sa-back::before { opacity: 1; }
+
+/* A fade says the row continues; it does not say it can be moved. With a
+   mouse there is nothing to swipe, so the arrows carry that meaning — and
+   only appear on devices that have a pointer, since a thumb does not need
+   them and they would cover a button. */
+.sa-quick-nav {
+  position: absolute; top: 50%; transform: translateY(-60%);
+  width: 26px; height: 26px; border-radius: 50%; padding: 0;
+  display: none; align-items: center; justify-content: center;
+  background: #fff; color: #444; border: 1px solid #dcdee3;
+  box-shadow: 0 2px 8px rgba(0,0,0,.14); cursor: pointer; z-index: 2;
+  transition: background .12s ease, border-color .12s ease;
+}
+.sa-quick-nav:hover { background: #f4f5f7; border-color: #b9c0c8; }
+.sa-quick-prev { left: 6px; }
+.sa-quick-prev svg { transform: rotate(180deg); }
+.sa-quick-next { right: 6px; }
+@media (hover: hover) and (pointer: fine) {
+  .sa-quickwrap.sa-back .sa-quick-prev,
+  .sa-quickwrap.sa-more .sa-quick-next { display: flex; }
+}
 .sa-quick button {
   /* A flex row would otherwise squeeze eight buttons into the panel's width
      and clip every label. */
@@ -550,6 +579,10 @@
    panel is the accent rather than white. */
 .sa-bg-solid .sa-quickwrap::after {
   background: linear-gradient(90deg,
+    rgba(255,255,255,0), var(--sa-accent, #fff) 72%);
+}
+.sa-bg-solid .sa-quickwrap::before {
+  background: linear-gradient(270deg,
     rgba(255,255,255,0), var(--sa-accent, #fff) 72%);
 }
 .sa-bg-solid .sa-welcome-title { color: var(--sa-text, #1a1a1a); }
