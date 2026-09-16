@@ -77,20 +77,6 @@
   position: relative; z-index: 2;
 }
 
-/* The colour block behind the greeting, fading out before the suggestions so
-   they keep their white background and stay legible on any accent. */
-.sa-panel.sa-greeting::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 330px;
-  background: linear-gradient(180deg,
-    var(--sa-accent, #fff) 0%,
-    var(--sa-accent, #fff) 58%,
-    transparent 100%);
-  pointer-events: none; z-index: 0;
-}
-.sa-panel.sa-greeting .sa-welcome-title,
-.sa-panel.sa-greeting .sa-welcome-sub { color: var(--sa-text, #1a1a1a); }
-/* Slightly lifted so the subtitle stays readable on a mid-tone accent. */
-.sa-panel.sa-greeting .sa-welcome-sub { opacity: .88; }
 .sa-ident { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .sa-avatar {
   width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
@@ -488,67 +474,95 @@
 .sa-photo-input { display: none !important; }
 
 
+
 /* ---- Branded panel -------------------------------------------------------
- * The merchant's colour at the top, fading into white before the controls.
+ * How much of the panel carries the merchant's colour is their choice, set in
+ * the theme editor beside the colour itself. There is no single right answer:
+ * a deep brand colour wants the full panel, a pale one wants the header only,
+ * and I was guessing on their behalf.
  *
- * Two earlier attempts got this wrong in opposite directions. A colour block
- * that stopped partway left every white control below it reading as a patch
- * stuck onto the colour. Filling the whole panel fixed that but then the
- * controls had to be translucent and take the accent's text colour — which is
- * white on a dark accent, so the moment anything sat on the white part of the
- * panel it vanished.
- *
- * So the fade finishes above the controls. Everything below it keeps the plain
- * dark-on-white styling it always had, and nothing has to be legible against
- * two different grounds.
+ * The header always takes the accent. What changes below it is how far the
+ * colour reaches — and, with it, what the controls have to stay legible
+ * against.
  */
-.sa-panel {
+.sa-header { background: var(--sa-accent, #fff); }
+.sa-panel.sa-greeting::before { display: none; }
+.sa-msg.sa-bot { background: #fff; color: #1a1a1a; }
+.sa-brand { background: transparent; border-top: none; }
+
+/* --- Colour fading into white (default) ---------------------------------
+ * The fade finishes above the controls, so everything below keeps the plain
+ * dark-on-white styling it has always had and nothing needs to be legible
+ * against two different grounds. Captions are the exception: they can land on
+ * either side of the fade, so they carry a faint backing of their own. */
+.sa-bg-gradient {
   background: linear-gradient(180deg,
     var(--sa-accent, #fff) 0%,
     var(--sa-accent, #fff) 30%,
     #fff 62%);
 }
-.sa-header { background: transparent; }
-
-/* The panel itself is the colour now, so the old greeting-only block goes. */
-.sa-panel.sa-greeting::before { display: none; }
-
-/* The greeting sits on the accent, so it takes the paired text colour. */
-.sa-welcome-title { color: var(--sa-text, #1a1a1a); }
-.sa-welcome-sub { color: var(--sa-text, #5c6166); opacity: .9; }
-
-/* The first bubbles of a conversation land on the accent, so a near-white
-   grey turned muddy there — white keeps its own ground on any colour. */
-.sa-msg.sa-bot { background: #fff; color: #1a1a1a; }
-
-/* Captions can fall on either the colour or the white below it, so they use a
-   mid grey that stays readable on both rather than committing to one. */
-.sa-meta, .sa-rate-q, .sa-rate-done { color: #8c9096; }
-
-/* The composer's hairline read as a seam once the ground behind it was white
-   anyway, and the footer no longer needs a band of its own. */
-.sa-inputbar { border-color: #e3e5e8; }
-.sa-brand { background: transparent; border-top: none; }
-
-/* Captions and the rating row can land on the accent or on the white below it,
-   depending on how far the conversation has scrolled. A single grey could not
-   hold up on both, so they carry a faint white backing instead: invisible
-   against the white half, and enough of a ground to read against the colour. */
-.sa-meta, .sa-rate {
+.sa-bg-gradient .sa-welcome-title { color: var(--sa-text, #1a1a1a); }
+.sa-bg-gradient .sa-welcome-sub { color: var(--sa-text, #5c6166); opacity: .9; }
+.sa-bg-gradient .sa-meta,
+.sa-bg-gradient .sa-rate-q,
+.sa-bg-gradient .sa-rate-done { color: #8c9096; }
+.sa-bg-gradient .sa-meta,
+.sa-bg-gradient .sa-rate {
   align-self: flex-start;
   background: rgba(255,255,255,.75);
-  border-radius: 999px;
-  padding: 2px 8px;
+  border-radius: 999px; padding: 2px 8px;
 }
-.sa-row.sa-user .sa-meta { align-self: flex-end; }
+.sa-bg-gradient .sa-row.sa-user .sa-meta { align-self: flex-end; }
+.sa-bg-gradient .sa-inputbar { border-color: #e3e5e8; }
 
-/* Handing over to a person. Neutral rather than accent-coloured: it competes
-   with the send button otherwise, and this is a fallback, not the main path. */
-.sa-human-quick { border-color: #b9c0c8 !important; }
-.sa-human-btn {
-  align-self: flex-start; background: #fff; color: #1a1a1a;
-  border: 1px solid #d4d7db; text-decoration: none;
-  padding: 9px 15px; border-radius: 12px; font-size: 13.5px; font-weight: 600;
-  word-break: break-all;
+/* --- Full colour ---------------------------------------------------------
+ * Every control sits on the accent, so they become translucent pills tinted
+ * by what is behind them and take the paired text colour. On a light accent a
+ * white wash is invisible, so they darken instead. */
+.sa-bg-solid { background: var(--sa-accent, #fff); }
+.sa-bg-solid .sa-quick { background: transparent; }
+.sa-bg-solid .sa-welcome-title { color: var(--sa-text, #1a1a1a); }
+.sa-bg-solid .sa-welcome-sub { color: var(--sa-text, #5c6166); opacity: .9; }
+.sa-bg-solid .sa-meta,
+.sa-bg-solid .sa-rate-q,
+.sa-bg-solid .sa-rate-done { color: var(--sa-text, #9a9da2); opacity: .75; }
+.sa-bg-solid .sa-suggest,
+.sa-bg-solid .sa-quick button,
+.sa-bg-solid .sa-rate-btn {
+  background: rgba(255,255,255,.16);
+  border: 1px solid rgba(255,255,255,.34);
+  color: var(--sa-text, #1a1a1a);
 }
-.sa-human-btn:hover { border-color: #9aa2ab; }
+.sa-bg-solid .sa-suggest:hover,
+.sa-bg-solid .sa-quick button:hover,
+.sa-bg-solid .sa-rate-btn:hover {
+  background: rgba(255,255,255,.28);
+  border-color: rgba(255,255,255,.5);
+}
+@supports (color: color-mix(in srgb, white, black)) {
+  .sa-bg-solid .sa-suggest,
+  .sa-bg-solid .sa-quick button,
+  .sa-bg-solid .sa-rate-btn {
+    background: color-mix(in srgb, var(--sa-text, #1a1a1a) 12%, transparent);
+    border-color: color-mix(in srgb, var(--sa-text, #1a1a1a) 30%, transparent);
+  }
+  .sa-bg-solid .sa-suggest:hover,
+  .sa-bg-solid .sa-quick button:hover,
+  .sa-bg-solid .sa-rate-btn:hover {
+    background: color-mix(in srgb, var(--sa-text, #1a1a1a) 20%, transparent);
+    border-color: color-mix(in srgb, var(--sa-text, #1a1a1a) 45%, transparent);
+  }
+}
+/* Both keep their own recognisable colour, which is the point of them, so
+   they need a surface of their own on any accent. */
+.sa-bg-solid .sa-wa-quick { background: #fff !important; }
+/* It takes the accent text colour from the rule above, which on a dark accent
+   left white text on the white pill it had just been given. */
+.sa-bg-solid .sa-human-quick {
+  background: #fff !important; color: #1a1a1a !important;
+  border-color: #b9c0c8 !important;
+}
+.sa-bg-solid .sa-inputbar { border-color: transparent; }
+
+/* --- White, coloured header only ---------------------------------------- */
+.sa-bg-plain { background: #fff; }

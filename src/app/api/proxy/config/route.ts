@@ -17,6 +17,13 @@ export const maxDuration = 60;
 // Catalogues change slowly, and config is read on every storefront page load.
 const EXAMPLES_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+// An empty result is held for hours, not a week. A shop that genuinely sells
+// nothing is rare; a bad query, an expired token or a slow API is not — and a
+// week is far too long to serve the consequences of one. This is exactly what
+// went wrong when a rejected query cached "[]" everywhere: the bug was fixed
+// within the hour and shops kept showing the empty result for days.
+const EMPTY_TTL_MS = 6 * 60 * 60 * 1000;
+
 // The storefront widget calls this once on load (via App Proxy) to know how to
 // render: whether to show branding, whether WhatsApp handoff is unlocked on the
 // shop's plan, and which suggested FAQ questions to offer.
@@ -105,24 +112,29 @@ export async function GET(req: NextRequest) {
         .where(eq(schema.shops.shopDomain, shopDomain))
         .limit(1);
 
-      const fresh = cached?.productExamplesAt &&
-        Date.now() - new Date(cached.productExamplesAt).getTime() < EXAMPLES_TTL_MS;
+      // Parse first: how long the cache is good for depends on whether it
+      // actually holds anything.
+      let cached_ok = true;
+      if (cached?.productExamples) {
+        try { productExamples = JSON.parse(cached.productExamples); } catch { cached_ok = false; }
+      }
+      if (cached?.featuredProducts) {
+        try { featured = JSON.parse(cached.featuredProducts); } catch { cached_ok = false; }
+      } else {
+        // Written before this column existed — refresh once to fill it in.
+        cached_ok = false;
+      }
 
-      // The timestamp alone decides freshness. Treating an empty result as a
-      // miss meant a shop whose catalogue genuinely yields nothing bought two
-      // Admin API calls on every single page view, forever.
-      let cacheHit = false;
-      if (fresh) {
-        cacheHit = true;
-        if (cached?.productExamples) {
-          try { productExamples = JSON.parse(cached.productExamples); } catch { cacheHit = false; }
-        }
-        if (cached?.featuredProducts) {
-          try { featured = JSON.parse(cached.featuredProducts); } catch { cacheHit = false; }
-        } else {
-          // Written before this column existed — refresh once to fill it in.
-          cacheHit = false;
-        }
+      const age = cached?.productExamplesAt
+        ? Date.now() - new Date(cached.productExamplesAt).getTime()
+        : Infinity;
+      const ttl = featured.length ? EXAMPLES_TTL_MS : EMPTY_TTL_MS;
+      const cacheHit = cached_ok && age < ttl;
+      if (!cacheHit) {
+        // Anything reused below must come from this refresh, not from a cache
+        // we have just decided not to trust.
+        productExamples = [];
+        featured = [];
       }
 
       // Both come from the same catalogue and go stale together, so one miss

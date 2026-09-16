@@ -84,6 +84,12 @@
   // any risk of unreadable text on an unusual colour.
   panel.style.setProperty('--sa-accent', ACCENT);
   panel.style.setProperty('--sa-text', TEXTCOLOR);
+  // How much of the panel the colour covers, chosen by the merchant in the
+  // theme editor. Anything unrecognised falls back to the fade, which is the
+  // one that reads acceptably with any accent.
+  var STYLES = { gradient: 1, solid: 1, plain: 1 };
+  var PANEL_STYLE = STYLES[root.dataset.panelStyle] ? root.dataset.panelStyle : 'gradient';
+  panel.classList.add('sa-bg-' + PANEL_STYLE);
   panel.innerHTML =
     '<div class="sa-header">' +
       '<div class="sa-ident">' +

@@ -11,6 +11,7 @@
   data-greeting="{{ block.settings.greeting | escape }}"
   data-popup="{{ block.settings.popup_text | escape }}"
   data-icon="{{ block.settings.launcher_icon }}"
+  data-panel-style="{{ block.settings.panel_style }}"
   data-position="{{ block.settings.position }}"
   data-brand-name="{{ block.settings.display_name | default: shop.name | escape }}"
   data-logo="{% if block.settings.logo %}{{ block.settings.logo | image_url: width: 96 }}{% endif %}"
@@ -38,6 +39,16 @@
     },
     { "type": "header", "content": "Appearance" },
     { "type": "color", "id": "accent_color", "label": "Main color (button & header)", "default": "#1a1a1a" },
+    {
+      "type": "select", "id": "panel_style", "label": "Chat background",
+      "options": [
+        { "value": "gradient", "label": "Your color fading into white" },
+        { "value": "solid", "label": "Your color, full panel" },
+        { "value": "plain", "label": "White, colored header only" }
+      ],
+      "default": "gradient",
+      "info": "How much of the chat window uses your main color."
+    },
     { "type": "color", "id": "text_color", "label": "Button/header text color", "default": "#ffffff" },
     {
       "type": "select", "id": "launcher_icon", "label": "Chat button icon",
