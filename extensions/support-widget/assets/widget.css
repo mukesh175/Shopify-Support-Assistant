@@ -486,3 +486,85 @@
 .sa-photo-add:disabled { opacity: .55; cursor: default; }
 .sa-photo-hint { font-size: 12px; color: #6b7177; line-height: 1.4; }
 .sa-photo-input { display: none !important; }
+
+/* ---- Branded panel -------------------------------------------------------
+ * The whole panel carries the merchant's colour, not just a band at the top.
+ * A block that stopped partway left every white control below it reading as a
+ * patch stuck onto the colour, and clearing it the moment a question was asked
+ * made the widget look like it had changed into a different product.
+ *
+ * Everything the shopper reads sits on its own white surface — bubbles, cards,
+ * the composer — so legibility never depends on which colour was picked. Only
+ * the chrome around them takes the accent, and that uses the text colour the
+ * merchant already paired with it in the theme editor.
+ */
+.sa-panel { background: var(--sa-accent, #fff); }
+.sa-header { background: transparent; }
+.sa-quick { background: transparent; }
+
+/* The greeting block is now the panel itself. */
+.sa-panel.sa-greeting::before { display: none; }
+.sa-welcome-title,
+.sa-panel.sa-greeting .sa-welcome-title { color: var(--sa-text, #1a1a1a); }
+.sa-welcome-sub,
+.sa-panel.sa-greeting .sa-welcome-sub { color: var(--sa-text, #5c6166); opacity: .88; }
+
+/* Bubbles keep their own ground. White rather than the old near-white grey,
+   which turned muddy over a saturated colour. */
+.sa-msg.sa-bot { background: #fff; color: #1a1a1a; }
+
+/* Captions, ratings and the footer are chrome: they take the text colour and
+   sit back, where a fixed grey disappeared into a dark accent entirely. */
+.sa-meta, .sa-rate-q, .sa-rate-done, .sa-brand {
+  color: var(--sa-text, #9a9da2); opacity: .72;
+}
+
+/* Chips and quick actions become translucent pills, tinted by whatever is
+   behind them, instead of solid white rectangles pasted on the colour. */
+.sa-suggest,
+.sa-quick button,
+.sa-rate-btn {
+  background: rgba(255,255,255,.16);
+  border: 1px solid rgba(255,255,255,.34);
+  color: var(--sa-text, #1a1a1a);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+.sa-suggest:hover,
+.sa-quick button:hover,
+.sa-rate-btn:hover {
+  background: rgba(255,255,255,.28);
+  border-color: rgba(255,255,255,.5);
+}
+/* On a light accent a white wash is invisible, so the pills darken instead. */
+@supports (color: color-mix(in srgb, white, black)) {
+  .sa-suggest, .sa-quick button, .sa-rate-btn {
+    background: color-mix(in srgb, var(--sa-text, #1a1a1a) 12%, transparent);
+    border-color: color-mix(in srgb, var(--sa-text, #1a1a1a) 30%, transparent);
+  }
+  .sa-suggest:hover, .sa-quick button:hover, .sa-rate-btn:hover {
+    background: color-mix(in srgb, var(--sa-text, #1a1a1a) 20%, transparent);
+    border-color: color-mix(in srgb, var(--sa-text, #1a1a1a) 45%, transparent);
+  }
+}
+.sa-suggest:focus-visible,
+.sa-quick button:focus-visible { outline-color: var(--sa-text, #1a1a1a); }
+
+/* WhatsApp keeps its own green, which is the point of recognising it, but
+   needs a surface of its own to stay legible on any accent. */
+.sa-wa-quick {
+  background: #fff !important;
+  border-color: #25d366 !important;
+  color: #128c3e !important;
+}
+
+/* The composer is a white pill: it is where the shopper types, and it should
+   look like the one thing on the panel that accepts input. */
+.sa-inputbar { border-color: transparent; }
+
+/* History overlays the whole panel, so it brings its own white ground and the
+   controls inside it stay dark-on-white. */
+.sa-history { background: #fff; }
+.sa-history .sa-suggest { background: #fff; border-color: #dcdee3; color: #2c6ecb; }
+/* The footer carried its own white ground and hairline, which on a coloured
+   panel read as a strip stuck to the bottom. */
+.sa-brand { background: transparent; border-top: none; }

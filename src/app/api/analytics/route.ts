@@ -84,6 +84,8 @@ export async function GET(req: NextRequest) {
       resolved,
       deflectionRate,
       hoursSaved,
+      satisfaction,
+      ratedCount: rated,
       breakdown: {
         orderStatus: Number(t.order_status ?? 0),
         faq: Number(t.faq ?? 0),

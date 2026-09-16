@@ -78,7 +78,9 @@ export default function AnalyticsPage() {
                     <Stat label="Est. hours saved" value={`${data.hoursSaved}h`} sub="~3 min per answer" />
                     <Stat
                       label="Rated helpful"
-                      value={data.satisfaction === null ? "—" : `${data.satisfaction}%`}
+                      // Null-ish, not just null: a field the API has not sent
+                      // rendered as "undefined%" on the merchant's dashboard.
+                      value={data.satisfaction == null ? "—" : `${data.satisfaction}%`}
                       sub={data.ratedCount ? `${data.ratedCount} shopper rating${data.ratedCount === 1 ? "" : "s"}` : "No ratings yet"}
                     />
                   </InlineStack>
