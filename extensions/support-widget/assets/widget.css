@@ -117,10 +117,11 @@
 }
 .sa-panel.sa-showhist .sa-history { display: block; }
 .sa-panel.sa-showhist .sa-body,
-.sa-panel.sa-showhist .sa-quick,
+.sa-panel.sa-showhist .sa-quickwrap,
 .sa-panel.sa-showhist .sa-inputbar { display: none; }
-/* A form card owns the conversation until it is submitted or cancelled. */
-.sa-panel.sa-forming .sa-quick { display: none; }
+/* A form card owns the conversation until it is submitted or cancelled. The
+   wrapper goes, not just the row inside it, or its padding and fade stay. */
+.sa-panel.sa-forming .sa-quickwrap { display: none; }
 .sa-hist-head { margin-bottom: 6px; }
 .sa-hist-back {
   background: none; border: none; padding: 4px 0; cursor: pointer;
@@ -224,8 +225,32 @@
 .sa-typing span:nth-child(3) { animation-delay: .3s; }
 @keyframes sa-bounce { 0%,80%,100%{opacity:.3;transform:translateY(0)} 40%{opacity:1;transform:translateY(-4px)} }
 
-.sa-quick { display: flex; gap: 7px; flex-wrap: wrap; padding: 4px 16px 10px; background: #fff; }
+/* One scrolling row rather than three wrapped lines. Eight actions stacked up
+   to half the panel and pushed the conversation out of view; swiping through
+   them costs nothing on a phone, and the fade below says there are more. */
+.sa-quickwrap { position: relative; flex-shrink: 0; background: #fff; }
+.sa-quick {
+  display: flex; gap: 7px; flex-wrap: nowrap;
+  padding: 4px 16px 10px;
+  overflow-x: auto; overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  /* The row is a few pixels tall; a scrollbar under it would be most of it. */
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+.sa-quick::-webkit-scrollbar { display: none; }
+/* Only drawn while something is actually still off to the right, so it never
+   sits there implying more when the row has already ended. */
+.sa-quickwrap::after {
+  content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 38px;
+  background: linear-gradient(90deg, rgba(255,255,255,0), #fff 72%);
+  pointer-events: none; opacity: 0; transition: opacity .15s ease;
+}
+.sa-quickwrap.sa-more::after { opacity: 1; }
 .sa-quick button {
+  /* A flex row would otherwise squeeze eight buttons into the panel's width
+     and clip every label. */
+  flex-shrink: 0;
   font-size: 13px; padding: 8px 14px; border: 1px solid #d4d7db;
   border-radius: 999px; background: #fff; cursor: pointer; color: #1a1a1a;
   transition: background .12s ease; font-family: inherit;
@@ -520,7 +545,13 @@
  * by what is behind them and take the paired text colour. On a light accent a
  * white wash is invisible, so they darken instead. */
 .sa-bg-solid { background: var(--sa-accent, #fff); }
-.sa-bg-solid .sa-quick { background: transparent; }
+.sa-bg-solid .sa-quickwrap { background: transparent; }
+/* The fade has to match whatever it is fading into, which on a full-colour
+   panel is the accent rather than white. */
+.sa-bg-solid .sa-quickwrap::after {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0), var(--sa-accent, #fff) 72%);
+}
 .sa-bg-solid .sa-welcome-title { color: var(--sa-text, #1a1a1a); }
 .sa-bg-solid .sa-welcome-sub { color: var(--sa-text, #5c6166); opacity: .9; }
 .sa-bg-solid .sa-meta,

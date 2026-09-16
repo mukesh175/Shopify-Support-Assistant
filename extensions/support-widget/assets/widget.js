@@ -121,7 +121,9 @@
     '</div>' +
     '<div class="sa-body"></div>' +
     '<div class="sa-history"></div>' +
-    '<div class="sa-quick">' +
+    // Wrapped so the fade that hints at more buttons can sit still while the
+    // row itself scrolls underneath it.
+    '<div class="sa-quickwrap"><div class="sa-quick">' +
       '<button data-q="faq">Ask a question</button>' +
       '<button data-q="find">Find a product</button>' +
       '<button data-q="order">Track my order</button>' +
@@ -130,7 +132,7 @@
       '<button data-q="reorder">Buy again</button>' +
       '<button data-q="wa" class="sa-wa-quick" style="display:none">WhatsApp us</button>' +
       '<button data-q="human" class="sa-human-quick" style="display:none">Talk to our team</button>' +
-    '</div>' +
+    '</div></div>' +
     '<div class="sa-inputbar">' +
       '<input type="text" placeholder="Ask anything…">' +
       '<button class="sa-send" style="background:' + ACCENT + ';color:' + TEXTCOLOR + '" aria-label="Send">' +
@@ -186,6 +188,9 @@
           var waQuick = panel.querySelector('.sa-wa-quick');
           if (waQuick && WHATSAPP) waQuick.style.display = '';
         }
+        // Config decides two of the buttons, so the row's width is only
+        // settled once it has answered.
+        updateQuickFade();
       })
       .catch(function () {});
   })();
@@ -362,6 +367,8 @@
       showSuggestions();
       greeted = true;
     }
+    // Only now does the row have a width to measure against.
+    updateQuickFade();
   }
 
   /**
@@ -425,10 +432,35 @@
   function applyActions() {
     panel.querySelectorAll('.sa-quick button').forEach(function (b) {
       var q = b.dataset.q;
-      if (q === 'wa') return; // driven by the WhatsApp config, not this setting
+      // Both of these are driven by their own config, not by this setting.
+      if (q === 'wa' || q === 'human') return;
       var on = q === 'find' ? (ACTIONS.product || ACTIONS.collections) : ACTIONS[q] !== false;
       b.style.display = on ? '' : 'none';
     });
+    updateQuickFade();
+  }
+
+  /* ---- The quick-action row scrolls sideways --------------------------
+   * Eight buttons wrapped onto three lines and took half the panel. The fade
+   * at the right edge is the only sign that the row continues, so it has to
+   * appear exactly when it does — and go when the row has been scrolled to
+   * the end, or when the merchant has turned enough buttons off that it fits.
+   */
+  var quickWrap = panel.querySelector('.sa-quickwrap');
+  var quickRow = panel.querySelector('.sa-quick');
+
+  function updateQuickFade() {
+    if (!quickWrap || !quickRow) return;
+    var more = quickRow.scrollWidth - quickRow.clientWidth - quickRow.scrollLeft > 2;
+    quickWrap.classList.toggle('sa-more', more);
+  }
+
+  quickRow.addEventListener('scroll', updateQuickFade);
+  window.addEventListener('resize', updateQuickFade);
+  // The row is inside a panel that starts hidden, so it has no width to
+  // measure until the panel opens — and the expand button changes that width.
+  if (window.ResizeObserver) {
+    new ResizeObserver(updateQuickFade).observe(quickRow);
   }
 
   function startProductSearch() {
