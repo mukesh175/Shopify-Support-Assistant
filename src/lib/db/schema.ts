@@ -36,6 +36,9 @@ export const shops = pgTable('shops', {
   // human is a worse product, and an email address is not a feature worth
   // charging for.
   supportEmail: text('support_email'),
+  // When the handoff options are offered: 'fallback' (only once the assistant
+  // has failed) or 'always' (a button too). See src/lib/handoff.ts.
+  handoffMode: text('handoff_mode'),
   // Random slug identifying this shop's inbound email address. The merchant
   // forwards their support inbox to <slug>@<inbound domain>, and that is how
   // an arriving email is matched back to a shop.

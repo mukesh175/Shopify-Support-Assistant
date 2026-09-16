@@ -9,6 +9,7 @@ import { apiFetch } from '../lib-client';
 import {
   defaultPick, MAX_PICKED_PRODUCTS, type FeaturedPick,
 } from '@/lib/featuredPick';
+import { DEFAULT_HANDOFF, type HandoffMode } from '@/lib/handoff';
 import {
   QUICK_ACTIONS, defaultQuickActions,
   type QuickActionKey, type QuickActionSettings,
@@ -22,6 +23,9 @@ export default function SettingsPage() {
   const [savingEmail, setSavingEmail] = useState(false);
   const [savedEmail, setSavedEmail] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  // Governs the support email and WhatsApp together, so it saves with the
+  // email rather than becoming a third button on the same card.
+  const [handoff, setHandoff] = useState<HandoffMode>(DEFAULT_HANDOFF);
 
   // Which products the widget's welcome screen shows.
   const [pick, setPick] = useState<FeaturedPick>(defaultPick);
@@ -51,6 +55,7 @@ export default function SettingsPage() {
         else {
           setNumber(d.whatsappNumber ?? '');
           setEmail(d.supportEmail ?? '');
+          if (d.handoffMode) setHandoff(d.handoffMode);
           setAllowed(!!d.whatsappHandoff);
           if (d.featuredPick) setPick({ ...defaultPick(), ...d.featuredPick });
           if (d.quickActions) setActions({ ...defaultQuickActions(), ...d.quickActions });
@@ -156,12 +161,13 @@ export default function SettingsPage() {
     try {
       const res = await apiFetch('/api/settings', {
         method: 'PUT',
-        body: JSON.stringify({ supportEmail: email }),
+        body: JSON.stringify({ supportEmail: email, handoffMode: handoff }),
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) setEmailError(d.error ?? 'Could not save');
       else {
         setEmail(d.supportEmail ?? '');
+        if (d.handoffMode) setHandoff(d.handoffMode);
         setSavedEmail(true);
       }
     } catch (e: any) {
@@ -385,7 +391,24 @@ export default function SettingsPage() {
                     onChange={(v) => { setEmail(v); setSavedEmail(false); }}
                     autoComplete="email"
                     placeholder="help@yourstore.com"
-                    helpText="Shown in the chat as “Talk to our team”, and offered whenever the assistant cannot answer."
+                    helpText="Where customers are sent when they need a person."
+                  />
+                  <Select
+                    label="When to offer it"
+                    options={[
+                      {
+                        label: "Only when the assistant can't answer",
+                        value: 'fallback',
+                      },
+                      { label: 'Always — as a chat button too', value: 'always' },
+                    ]}
+                    value={handoff}
+                    onChange={(v) => { setHandoff(v as HandoffMode); setSavedEmail(false); }}
+                    helpText={
+                      handoff === 'fallback'
+                        ? 'Customers try the assistant first, so more questions get handled without you. This also applies to WhatsApp.'
+                        : 'A “Talk to our team” button sits in the chat at all times. Easiest for customers, but fewer questions reach the assistant. This also applies to WhatsApp.'
+                    }
                   />
                   <InlineStack>
                     <Button variant="primary" onClick={saveEmail} loading={savingEmail}>

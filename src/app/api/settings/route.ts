@@ -4,6 +4,7 @@ import { getActivePlan } from '@/lib/shopify/billing';
 import { db, schema } from '@/lib/db';
 import { parseQuickActions, sanitizeQuickActions } from '@/lib/quickActions';
 import { parsePick, sanitizePick } from '@/lib/featuredPick';
+import { parseHandoff } from '@/lib/handoff';
 import { eq } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
@@ -23,6 +24,7 @@ export async function GET(req: NextRequest) {
       .select({
         whatsappNumber: schema.shops.whatsappNumber,
         supportEmail: schema.shops.supportEmail,
+        handoffMode: schema.shops.handoffMode,
         featuredPick: schema.shops.featuredPick,
         quickActions: schema.shops.quickActions,
       })
@@ -39,6 +41,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       whatsappNumber: row?.whatsappNumber ?? '',
       supportEmail: row?.supportEmail ?? '',
+      handoffMode: parseHandoff(row?.handoffMode),
       featuredPick: parsePick(row?.featuredPick),
       whatsappHandoff,
       quickActions: parseQuickActions(row?.quickActions),
@@ -97,6 +100,12 @@ export async function PUT(req: NextRequest) {
       updates.supportEmail = supportEmail || null;
     }
 
+    let handoffMode;
+    if ('handoffMode' in payload) {
+      handoffMode = parseHandoff(String(payload.handoffMode ?? ''));
+      updates.handoffMode = handoffMode;
+    }
+
     let featuredPick;
     if ('featuredPick' in payload) {
       featuredPick = sanitizePick(payload.featuredPick);
@@ -125,6 +134,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({
       ...(digits !== undefined ? { whatsappNumber: digits } : {}),
       ...(supportEmail !== undefined ? { supportEmail } : {}),
+      ...(handoffMode ? { handoffMode } : {}),
       ...(featuredPick ? { featuredPick } : {}),
       ...(quickActions ? { quickActions } : {}),
     });

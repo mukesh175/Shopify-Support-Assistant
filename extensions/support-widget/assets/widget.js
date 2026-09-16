@@ -22,6 +22,11 @@
   // A route to a human that does not depend on the shop's plan. Empty until
   // /config answers, and the button stays hidden unless the merchant set one.
   var SUPPORT_EMAIL = '';
+  // 'fallback' — only offered once the assistant has failed; 'always' — a
+  // button in the row as well. Defaults to fallback: a permanent invitation to
+  // email instead invites shoppers past the assistant entirely, and the
+  // merchant would see that in their monthly numbers without seeing why.
+  var HANDOFF = 'fallback';
   // Photo evidence is a paid feature; off until /config says otherwise, so a
   // slow or failed call never offers something the shop cannot use.
   var PHOTOS_ENABLED = false;
@@ -178,15 +183,18 @@
           }
           applyActions();
         }
+        if (cfg && cfg.handoff === 'always') HANDOFF = 'always';
         if (cfg && typeof cfg.supportEmail === 'string' && cfg.supportEmail) {
           SUPPORT_EMAIL = cfg.supportEmail;
           var humanBtn = panel.querySelector('.sa-human-quick');
-          if (humanBtn) humanBtn.style.display = '';
+          if (humanBtn && HANDOFF === 'always') humanBtn.style.display = '';
         }
         if (cfg && typeof cfg.whatsapp === 'string' && cfg.whatsapp) {
           WHATSAPP = cfg.whatsapp.replace(/[^0-9]/g, '');
           var waQuick = panel.querySelector('.sa-wa-quick');
-          if (waQuick && WHATSAPP) waQuick.style.display = '';
+          // Both channels follow the same rule — a shopper should not have to
+          // learn that one of them behaves differently from the other.
+          if (waQuick && WHATSAPP && HANDOFF === 'always') waQuick.style.display = '';
         }
         // Config decides two of the buttons, so the row's width is only
         // settled once it has answered.

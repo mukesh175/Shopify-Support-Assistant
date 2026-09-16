@@ -7,6 +7,7 @@ import {
   fetchCollectionProducts, fetchProductsByIds,
 } from '@/lib/shopify/products';
 import { parsePick } from '@/lib/featuredPick';
+import { parseHandoff } from '@/lib/handoff';
 import type { ProductRec } from '@/lib/shopify/products';
 import { db, schema } from '@/lib/db';
 import { defaultQuickActions, parseQuickActions } from '@/lib/quickActions';
@@ -69,6 +70,7 @@ export async function GET(req: NextRequest) {
         quickActions: schema.shops.quickActions,
         widgetLastSeenAt: schema.shops.widgetLastSeenAt,
         supportEmail: schema.shops.supportEmail,
+        handoffMode: schema.shops.handoffMode,
         featuredPick: schema.shops.featuredPick,
       })
       .from(schema.shops)
@@ -181,6 +183,8 @@ export async function GET(req: NextRequest) {
       // Read outside the plan check, unlike the WhatsApp number: this one is
       // available on every plan.
       supportEmail: buttons?.supportEmail || null,
+      // Whether those are a button too, or only offered once we have failed.
+      handoff: parseHandoff(buttons?.handoffMode),
     });
   } catch {
     return NextResponse.json(fallback);
