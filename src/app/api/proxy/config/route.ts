@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAppProxySignature } from '@/lib/auth/appProxy';
 import { getShopToken } from '@/lib/auth/session';
 import { getActivePlan } from '@/lib/shopify/billing';
-import { fetchProductExamples, fetchFeaturedProducts } from '@/lib/shopify/products';
+import {
+  fetchProductExamples, fetchFeaturedProducts,
+  fetchCollectionProducts, fetchProductsByIds,
+} from '@/lib/shopify/products';
+import { parsePick } from '@/lib/featuredPick';
 import type { ProductRec } from '@/lib/shopify/products';
 import { db, schema } from '@/lib/db';
 import { defaultQuickActions, parseQuickActions } from '@/lib/quickActions';
@@ -65,6 +69,7 @@ export async function GET(req: NextRequest) {
         quickActions: schema.shops.quickActions,
         widgetLastSeenAt: schema.shops.widgetLastSeenAt,
         supportEmail: schema.shops.supportEmail,
+        featuredPick: schema.shops.featuredPick,
       })
       .from(schema.shops)
       .where(eq(schema.shops.shopDomain, shopDomain))
@@ -141,9 +146,22 @@ export async function GET(req: NextRequest) {
       // refreshes the pair — two separate clocks would mean two Admin API
       // round trips on a page load that should usually make none.
       if (!cacheHit) {
+        const pick = parsePick(buttons?.featuredPick);
         [productExamples, featured] = await Promise.all([
           fetchProductExamples(shopDomain, token),
-          fetchFeaturedProducts(shopDomain, token),
+          // A merchant who named a collection or picked a list gets exactly
+          // that. If it comes back empty — the collection emptied, the picked
+          // products deleted — the automatic list stands in, because a bare
+          // welcome screen is worse than one the merchant did not choose.
+          (async (): Promise<ProductRec[]> => {
+            let chosen: ProductRec[] = [];
+            if (pick.mode === 'collection') {
+              chosen = (await fetchCollectionProducts(shopDomain, token, pick.collection, 6)).products;
+            } else if (pick.mode === 'products') {
+              chosen = await fetchProductsByIds(shopDomain, token, pick.productIds);
+            }
+            return chosen.length ? chosen : fetchFeaturedProducts(shopDomain, token);
+          })(),
         ]);
         // Stamp the time even when nothing came back, so a shop with no usable
         // product names is not re-queried on every single page load.

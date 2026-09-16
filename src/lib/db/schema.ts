@@ -50,6 +50,11 @@ export const shops = pgTable('shops', {
   // storefront asks for config on every page load, and this must never become
   // an Admin API call per view.
   featuredProducts: text('featured_products'),
+  // How the merchant wants those chosen, as JSON (see src/lib/featuredPick.ts).
+  // Null means automatic, which is what every shop had before the setting
+  // existed. Editing this clears productExamplesAt so the change is visible on
+  // the storefront immediately rather than whenever the cache next expires.
+  featuredPick: text('featured_pick'),
   productExamplesAt: timestamp('product_examples_at'),
   // Which chat buttons the widget offers, as a JSON object keyed by action
   // (see src/lib/quickActions.ts). Null means the merchant has never touched

@@ -3,6 +3,7 @@ import { verifySessionToken, ensureOfflineToken, getShopToken, errorResponse } f
 import { getActivePlan } from '@/lib/shopify/billing';
 import { db, schema } from '@/lib/db';
 import { parseQuickActions, sanitizeQuickActions } from '@/lib/quickActions';
+import { parsePick, sanitizePick } from '@/lib/featuredPick';
 import { eq } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
@@ -22,6 +23,7 @@ export async function GET(req: NextRequest) {
       .select({
         whatsappNumber: schema.shops.whatsappNumber,
         supportEmail: schema.shops.supportEmail,
+        featuredPick: schema.shops.featuredPick,
         quickActions: schema.shops.quickActions,
       })
       .from(schema.shops)
@@ -37,6 +39,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       whatsappNumber: row?.whatsappNumber ?? '',
       supportEmail: row?.supportEmail ?? '',
+      featuredPick: parsePick(row?.featuredPick),
       whatsappHandoff,
       quickActions: parseQuickActions(row?.quickActions),
     });
@@ -94,6 +97,16 @@ export async function PUT(req: NextRequest) {
       updates.supportEmail = supportEmail || null;
     }
 
+    let featuredPick;
+    if ('featuredPick' in payload) {
+      featuredPick = sanitizePick(payload.featuredPick);
+      updates.featuredPick = JSON.stringify(featuredPick);
+      // Drop the cached deck's timestamp so the storefront picks the new
+      // choice up on the next page load. Without this a merchant changes the
+      // setting, looks at their shop, and sees the old products for a week.
+      updates.productExamplesAt = null;
+    }
+
     let quickActions;
     if ('quickActions' in payload) {
       quickActions = sanitizeQuickActions(payload.quickActions);
@@ -112,6 +125,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({
       ...(digits !== undefined ? { whatsappNumber: digits } : {}),
       ...(supportEmail !== undefined ? { supportEmail } : {}),
+      ...(featuredPick ? { featuredPick } : {}),
       ...(quickActions ? { quickActions } : {}),
     });
   } catch (e) {

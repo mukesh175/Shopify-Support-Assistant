@@ -454,3 +454,103 @@ export async function fetchFeaturedProducts(
     return [];
   }
 }
+
+const BY_IDS_QUERY = /* GraphQL */ `
+  query ProductsByIds($ids: [ID!]!) {
+    nodes(ids: $ids) {
+      ... on Product {
+        title
+        handle
+        onlineStoreUrl
+        featuredImage { url }
+        images(first: 1) { edges { node { url } } }
+        priceRangeV2 { minVariantPrice { amount currencyCode } }
+      }
+    }
+  }
+`;
+
+/**
+ * Exactly the products the merchant picked, in the order they picked them.
+ *
+ * `nodes` returns null for anything deleted or not visible to this token, so
+ * a product removed from the store since it was chosen simply drops out of the
+ * deck rather than breaking it.
+ */
+export async function fetchProductsByIds(
+  shopDomain: string,
+  accessToken: string,
+  ids: string[]
+): Promise<ProductRec[]> {
+  if (!ids.length) return [];
+  try {
+    const res = await fetch(
+      `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': accessToken,
+        },
+        signal: AbortSignal.timeout(10000),
+        body: JSON.stringify({ query: BY_IDS_QUERY, variables: { ids } }),
+      }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (data?.errors?.length) {
+      console.error('[products] by-ids query rejected', JSON.stringify(data.errors).slice(0, 300));
+      return [];
+    }
+    return (data?.data?.nodes ?? [])
+      .filter(Boolean)
+      .map((n: any) => toRec(n, shopDomain))
+      .filter((p: ProductRec) => p.image && p.title);
+  } catch {
+    return [];
+  }
+}
+
+const COLLECTION_LIST_QUERY = /* GraphQL */ `
+  query CollectionList($first: Int!) {
+    collections(first: $first, sortKey: TITLE) {
+      edges { node { title handle productsCount { count } } }
+    }
+  }
+`;
+
+/** The shop's collections, for the merchant to choose one in the app. */
+export async function listCollections(
+  shopDomain: string,
+  accessToken: string
+): Promise<Array<{ title: string; handle: string; count: number }>> {
+  try {
+    const res = await fetch(
+      `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': accessToken,
+        },
+        signal: AbortSignal.timeout(10000),
+        body: JSON.stringify({ query: COLLECTION_LIST_QUERY, variables: { first: 100 } }),
+      }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (data?.errors?.length) {
+      console.error('[products] collection list rejected', JSON.stringify(data.errors).slice(0, 300));
+      return [];
+    }
+    return (data?.data?.collections?.edges ?? [])
+      .map((e: any) => ({
+        title: String(e.node?.title ?? '').trim(),
+        handle: String(e.node?.handle ?? ''),
+        count: Number(e.node?.productsCount?.count ?? 0),
+      }))
+      .filter((c: any) => c.title && c.handle);
+  } catch {
+    return [];
+  }
+}
