@@ -375,3 +375,65 @@ export async function fetchCollectionProducts(
     return { title: '', products: [] };
   }
 }
+
+const FEATURED_QUERY = /* GraphQL */ `
+  query FeaturedProducts($first: Int!) {
+    products(first: $first, sortKey: BEST_SELLING, query: "status:active") {
+      edges {
+        node {
+          title
+          handle
+          onlineStoreUrl
+          featuredImage { url }
+          images(first: 1) { edges { node { url } } }
+          priceRangeV2 { minVariantPrice { amount currencyCode } }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * A handful of the shop's best sellers, for the widget's welcome screen.
+ *
+ * An empty chat panel gives a shopper nothing to react to. Showing real
+ * products from this store — with their real photos — says the assistant knows
+ * the catalogue before anyone has typed anything, and gives someone who opened
+ * the chat out of curiosity somewhere to go.
+ *
+ * Products without an image are dropped: the point of this is the picture, and
+ * a placeholder letter in a fanned deck looks broken rather than minimal.
+ */
+export async function fetchFeaturedProducts(
+  shopDomain: string,
+  accessToken: string,
+  limit = 6
+): Promise<ProductRec[]> {
+  try {
+    const res = await fetch(
+      `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': accessToken,
+        },
+        signal: AbortSignal.timeout(10000),
+        body: JSON.stringify({
+          query: FEATURED_QUERY,
+          // Over-fetch: some of the best sellers will have no image.
+          variables: { first: Math.min(limit * 3, 30) },
+        }),
+      }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const nodes = (data?.data?.products?.edges ?? []).map((e: any) => e.node);
+    return nodes
+      .map((n: any) => toRec(n, shopDomain))
+      .filter((p: ProductRec) => p.image && p.title)
+      .slice(0, limit);
+  } catch {
+    return [];
+  }
+}

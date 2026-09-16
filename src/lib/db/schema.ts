@@ -40,6 +40,11 @@ export const shops = pgTable('shops', {
   // config on every page load and this would otherwise be an Admin API call
   // each time.
   productExamples: text('product_examples'),
+  // Best sellers with their images, shown on the widget's welcome screen.
+  // Cached beside the examples above and refreshed on the same clock — the
+  // storefront asks for config on every page load, and this must never become
+  // an Admin API call per view.
+  featuredProducts: text('featured_products'),
   productExamplesAt: timestamp('product_examples_at'),
   // Which chat buttons the widget offers, as a JSON object keyed by action
   // (see src/lib/quickActions.ts). Null means the merchant has never touched

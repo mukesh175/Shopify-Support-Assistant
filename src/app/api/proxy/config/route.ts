@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAppProxySignature } from '@/lib/auth/appProxy';
 import { getShopToken } from '@/lib/auth/session';
 import { getActivePlan } from '@/lib/shopify/billing';
-import { fetchProductExamples } from '@/lib/shopify/products';
+import { fetchProductExamples, fetchFeaturedProducts } from '@/lib/shopify/products';
+import type { ProductRec } from '@/lib/shopify/products';
 import { db, schema } from '@/lib/db';
 import { defaultQuickActions, parseQuickActions } from '@/lib/quickActions';
 import { and, eq, desc } from 'drizzle-orm';
@@ -29,6 +30,7 @@ export async function GET(req: NextRequest) {
     whatsapp: null as string | null,
     photos: false,
     productExamples: [] as string[],
+    featured: [] as ProductRec[],
     suggestions: [] as string[],
   };
   if (!verifyAppProxySignature(url)) return NextResponse.json(fallback);
@@ -75,6 +77,7 @@ export async function GET(req: NextRequest) {
 
     const token = await getShopToken(shopDomain);
     let productExamples: string[] = [];
+    let featured: ProductRec[] = [];
     let branding = true;
     let whatsapp: string | null = null;
     let photos = false;
@@ -94,6 +97,7 @@ export async function GET(req: NextRequest) {
       const [cached] = await db
         .select({
           productExamples: schema.shops.productExamples,
+          featuredProducts: schema.shops.featuredProducts,
           productExamplesAt: schema.shops.productExamplesAt,
         })
         .from(schema.shops)
@@ -103,24 +107,39 @@ export async function GET(req: NextRequest) {
       const fresh = cached?.productExamplesAt &&
         Date.now() - new Date(cached.productExamplesAt).getTime() < EXAMPLES_TTL_MS;
 
-      if (fresh && cached?.productExamples) {
-        try { productExamples = JSON.parse(cached.productExamples); } catch { /* refetch below */ }
+      if (fresh) {
+        if (cached?.productExamples) {
+          try { productExamples = JSON.parse(cached.productExamples); } catch { /* refetch below */ }
+        }
+        if (cached?.featuredProducts) {
+          try { featured = JSON.parse(cached.featuredProducts); } catch { /* refetch below */ }
+        }
       }
 
-      if (!productExamples.length) {
-        productExamples = await fetchProductExamples(shopDomain, token);
+      // Both come from the same catalogue and go stale together, so one miss
+      // refreshes the pair — two separate clocks would mean two Admin API
+      // round trips on a page load that should usually make none.
+      if (!productExamples.length || !featured.length) {
+        [productExamples, featured] = await Promise.all([
+          fetchProductExamples(shopDomain, token),
+          fetchFeaturedProducts(shopDomain, token),
+        ]);
         // Stamp the time even when nothing came back, so a shop with no usable
         // product names is not re-queried on every single page load.
         await db
           .update(schema.shops)
           .set({
             productExamples: JSON.stringify(productExamples),
+            featuredProducts: JSON.stringify(featured),
             productExamplesAt: new Date(),
           })
           .where(eq(schema.shops.shopDomain, shopDomain));
       }
     }
-    return NextResponse.json({ branding, whatsapp, photos, productExamples, suggestions, actions });
+    return NextResponse.json({
+      branding, whatsapp, photos, productExamples, suggestions, actions,
+      featured,
+    });
   } catch {
     return NextResponse.json(fallback);
   }

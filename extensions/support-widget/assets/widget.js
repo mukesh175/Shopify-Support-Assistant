@@ -26,6 +26,11 @@
   // a generic prompt beats one naming products the shop does not carry.
   var PRODUCT_EXAMPLES = [];
 
+  // Best sellers with photos, for the welcome screen. An empty panel gives a
+  // shopper nothing to react to; real products from this shop say the
+  // assistant knows the catalogue before anyone has typed a word.
+  var FEATURED = [];
+
   // Which buttons the merchant wants offered (set in the app under Settings).
   // Everything is on until /config says otherwise: a slow or failed call
   // should leave the widget as capable as it was, not blank out its buttons.
@@ -141,6 +146,12 @@
           PRODUCT_EXAMPLES = cfg.productExamples.filter(function (t) {
             return typeof t === 'string' && t.trim();
           });
+        }
+        if (cfg && cfg.featured && cfg.featured.length) {
+          FEATURED = cfg.featured.filter(function (p) { return p && p.image && p.title; });
+          // Config can land after the shopper has already opened the panel, so
+          // the welcome screen is redrawn rather than left as the empty version.
+          if (greeted) refreshWelcome();
         }
         if (cfg && cfg.actions && typeof cfg.actions === 'object') {
           for (var k in ACTIONS) {
@@ -260,7 +271,52 @@
     var hi = CUSTOMER ? 'Hi ' + CUSTOMER + '!' : 'Hi there!';
     wrap.appendChild(el('div', 'sa-welcome-title', hi));
     wrap.appendChild(el('div', 'sa-welcome-sub', GREETING));
+    if (FEATURED.length >= 2) wrap.appendChild(productFan());
     body.appendChild(wrap);
+  }
+
+  /**
+   * Three of the shop's best sellers, fanned like a hand of cards.
+   *
+   * Tapping one opens that product rather than asking the assistant about it:
+   * the shopper is looking at the photo, so they want the product page, and
+   * routing it through the model would cost the shop an answer from its
+   * monthly allowance to tell them what they can already see.
+   */
+  function productFan() {
+    var items = FEATURED.slice(0, 3);
+    var fan = el('div', 'sa-fan' + (items.length < 3 ? ' sa-fan-pair' : ''));
+    // Paint the edges first and the middle card last, so the centre sits in
+    // front and the deck reads as one object rather than three drifting apart.
+    // With only two products there is no middle — indexing a third here used
+    // to drop a card and leave a lone tilted photo.
+    var order = items.length === 3
+      ? [0, 2, 1]
+      : items.map(function (_, i) { return i; });
+    order.forEach(function (i) {
+      var p = items[i];
+      if (!p) return;
+      var card = el('a', 'sa-fan-card sa-fan-' + i);
+      card.href = p.url;
+      card.target = '_top';
+      card.setAttribute('aria-label', p.title);
+      var img = el('span', 'sa-fan-img');
+      img.style.backgroundImage = 'url("' + String(p.image).replace(/"/g, '') + '")';
+      card.appendChild(img);
+      card.appendChild(el('span', 'sa-fan-title', p.title));
+      fan.appendChild(card);
+    });
+    return fan;
+  }
+
+  /** Redraw the welcome block in place once config has caught up. */
+  function refreshWelcome() {
+    var existing = body.querySelector('.sa-welcome');
+    if (!existing) return;           // a real conversation has started
+    if (body.querySelector('.sa-fan')) return;
+    if (FEATURED.length < 2) return;
+    existing.appendChild(productFan());
+    showSuggestions();
   }
   function clearWelcome() {
     var w = body.querySelector('.sa-welcome');
@@ -286,9 +342,15 @@
   function showSuggestions() {
     var old = body.querySelector('.sa-suggests');
     if (old) old.remove();
+
     if (!SUGGESTIONS.length) return;
+
+    // The fan above already shows these products, with their photos and names,
+    // and repeating them as text chips only pushed the questions off screen.
+    // The fan is the product surface; these chips stay questions.
+    var opening = !!body.querySelector('.sa-welcome');
     var wrap = el('div', 'sa-suggests');
-    SUGGESTIONS.slice(0, 4).forEach(function (q) {
+    SUGGESTIONS.slice(0, opening && FEATURED.length >= 2 ? 2 : 4).forEach(function (q) {
       var chip = el('button', 'sa-suggest', q);
       chip.addEventListener('click', function () {
         wrap.remove();
@@ -299,7 +361,9 @@
       wrap.appendChild(chip);
     });
     body.appendChild(wrap);
-    body.scrollTop = body.scrollHeight;
+    // On the opening screen the greeting is the point — scrolling to the
+    // bottom pushed it out of sight behind the chips just added.
+    body.scrollTop = opening ? 0 : body.scrollHeight;
   }
   function close() { panel.classList.remove('sa-open'); }
 
