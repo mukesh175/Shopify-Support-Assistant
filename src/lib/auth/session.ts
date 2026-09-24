@@ -119,6 +119,21 @@ export async function ensureOfflineToken(sessionToken: string, shopDomain: strin
   const rows = await db.select().from(schema.shops).where(eq(schema.shops.shopDomain, shopDomain)).limit(1);
   const shop = rows[0];
 
+  // Every admin screen passes through here, so this is where we learn whether
+  // a merchant ever comes back. Stamped at most hourly — a merchant clicking
+  // around the app should not buy a write per request — and never allowed to
+  // fail the request it is riding on.
+  if (
+    shop &&
+    (!shop.adminLastSeenAt ||
+      Date.now() - shop.adminLastSeenAt.getTime() > 60 * 60 * 1000)
+  ) {
+    db.update(schema.shops)
+      .set({ adminLastSeenAt: new Date() })
+      .where(eq(schema.shops.shopDomain, shopDomain))
+      .catch(() => { /* a missed visit stamp is not worth an error page */ });
+  }
+
   const hasFreshExpiring =
     shop &&
     !shop.uninstalledAt &&

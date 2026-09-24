@@ -146,6 +146,30 @@ export default function HomePage() {
   return (
     <Page title="Zappy" subtitle="Your AI assistant for customer questions, orders, and product help.">
       <Layout>
+        {/* Above everything, and loud. Of the shops that installed after the
+            one-click button shipped, not one has switched the widget on — and
+            until they do, nothing else on this page can happen. A card in a
+            two-column grid was not saying that. */}
+        {!loading && setup && !setup.widgetLive && (
+          <Layout.Section>
+            <Banner
+              title="Your customers can't see the assistant yet"
+              tone="warning"
+              action={{
+                content: 'Enable on my store',
+                url: setup.enableWidgetUrl,
+                target: '_blank',
+              }}
+            >
+              <p>
+                Zappy is installed but switched off in your theme. One click opens
+                your theme editor with it already selected — press Save there and
+                the chat appears on your storefront.
+              </p>
+            </Banner>
+          </Layout.Section>
+        )}
+
         <Layout.Section>
           <ReviewPrompt />
         </Layout.Section>
@@ -174,13 +198,9 @@ export default function HomePage() {
                       ? 'Your customers can see the assistant on your store.'
                       : 'Nobody can see the assistant yet. One click switches it on.'}
                 </Text>
-                {!loading && !setup?.widgetLive && setup?.enableWidgetUrl && (
-                  <InlineStack>
-                    <Button variant="primary" url={setup.enableWidgetUrl} target="_blank">
-                      Enable on my store
-                    </Button>
-                  </InlineStack>
-                )}
+                {/* No button here: the banner above already carries it, and a
+                    third copy of the same action on one screen reads as
+                    clutter rather than emphasis. This card reports state. */}
               </BlockStack>
             </Card>
 

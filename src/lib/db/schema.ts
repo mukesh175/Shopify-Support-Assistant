@@ -68,6 +68,11 @@ export const shops = pgTable('shops', {
   // that will tell us. Written at most hourly, so a busy shop does not pay for
   // a database round trip on every page view.
   widgetLastSeenAt: timestamp('widget_last_seen_at'),
+  // Last time the merchant opened the app in their Shopify admin. Paired with
+  // widgetLastSeenAt this separates an install nobody ever came back to from
+  // one where the merchant looked at the setup screen and left anyway — two
+  // problems with nothing in common but the symptom.
+  adminLastSeenAt: timestamp('admin_last_seen_at'),
 });
 
 /**
