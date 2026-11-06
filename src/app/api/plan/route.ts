@@ -14,8 +14,12 @@ export async function GET(req: NextRequest) {
     await ensureOfflineToken(token, shopDomain);
     const offline = await getShopToken(shopDomain);
 
+    // This is the one screen whose whole job is to report the plan, and the
+    // one a merchant lands on straight after paying. It asks Shopify directly
+    // rather than trusting the short-lived cache, so an upgrade is never
+    // reported back as the old plan.
     const plan = offline
-      ? await getActivePlan(shopDomain, offline)
+      ? await getActivePlan(shopDomain, offline, { fresh: true })
       : (await import('@/lib/plans')).PLANS.free;
 
     // monthly usage
