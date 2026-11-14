@@ -148,15 +148,26 @@
   if (pop) document.body.appendChild(pop);
   document.body.appendChild(panel);
 
-  // "Powered by" branding footer — shown by default, hidden on Pro plan.
-  var brandFoot = el('div', 'sa-brand', '⚡ Powered by Zappy');
+  // Footer. Two separate things live here, and only one of them is ours to
+  // hide.
+  //
+  // "AI powered" is a disclosure: the shopper is talking to a model, not to a
+  // person in the back office, and they are entitled to know that before they
+  // trust an answer about shipping or a return. It stays on every plan.
+  //
+  // "Powered by Zappy" is our badge, and paying for Pro removes it.
+  var brandFoot = el('div', 'sa-brand');
+  var aiMark = el('span', 'sa-ai', '✦ AI powered');
+  var byMark = el('span', 'sa-by', '· Powered by Zappy');
+  brandFoot.appendChild(aiMark);
+  brandFoot.appendChild(byMark);
   panel.appendChild(brandFoot);
   (function loadConfig() {
     var configUrl = PROXY.replace(/\/query$/, '/config');
     fetch(configUrl, { method: 'GET' })
       .then(function (r) { return r.json(); })
       .then(function (cfg) {
-        if (cfg && cfg.branding === false) brandFoot.style.display = 'none';
+        if (cfg && cfg.branding === false) byMark.style.display = 'none';
         if (cfg && cfg.suggestions && cfg.suggestions.length) {
           SUGGESTIONS = cfg.suggestions.filter(function (q) {
             return typeof q === 'string' && q.trim();

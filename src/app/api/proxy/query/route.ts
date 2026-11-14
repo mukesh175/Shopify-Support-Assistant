@@ -295,8 +295,14 @@ async function handleQuery(req: NextRequest) {
   }
 
   const unresolved = text.includes('__UNRESOLVED__');
+  // The model writes its own apology after the marker, in the shopper's
+  // language (see CLOSING_RULE). Strip the marker and keep that sentence. The
+  // English line below is only for a model that returned the bare marker and
+  // nothing else — it is a floor, not the normal path.
+  const spoken = text.replace(/__UNRESOLVED__/g, '').trim();
   const finalText = unresolved
-    ? "I'm not sure about that one — I've noted it so the team can follow up. You can also email us directly."
+    ? spoken ||
+      "I'm not sure about that one — I've noted it so the team can follow up. You can also email us directly."
     : text;
 
   const logId = await logQuery(shopDomain, message, finalText, unresolved ? 'unresolved' : 'faq', !unresolved);

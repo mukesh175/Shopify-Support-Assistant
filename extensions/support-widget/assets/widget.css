@@ -365,7 +365,12 @@
 .sa-brand {
   text-align: center; font-size: 11px; color: #9a9da2;
   padding: 6px 0 8px; background: #fff; border-top: 1px solid #f2f2f4;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
 }
+/* The disclosure carries slightly more weight than our own badge beside it:
+ * it is the part the shopper needs to notice. */
+.sa-ai { font-weight: 600; color: #7d8085; letter-spacing: .01em; }
+.sa-by { color: #a9acb1; }
 
 /* FAQ suggestion chips */
 .sa-suggests { display: flex; flex-direction: column; gap: 7px; align-self: stretch; margin-top: 2px; }

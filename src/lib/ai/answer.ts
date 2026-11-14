@@ -19,8 +19,31 @@ answer into the customer's language naturally.`;
 const ENGLISH_ONLY_RULE = `LANGUAGE: Always reply in English, regardless of the language the customer
 writes in. Do not translate your answer into any other language.`;
 
-const CLOSING_RULE = `If the knowledge base does not contain the answer, reply EXACTLY with:
-"__UNRESOLVED__"
+// Two things the assistant must get right when it has no answer from the
+// knowledge base.
+//
+// First, a greeting is not a failed question. "hi" matches nothing in any
+// knowledge base, so it used to come back as the unresolved marker and the
+// shopper was told "I'm not sure about that one" for saying hello — and the
+// merchant saw their own greeting logged as a question the app could not
+// answer. A greeting gets a greeting.
+//
+// Second, when the answer genuinely is not there, the apology has to be in the
+// shopper's language. The marker used to be the whole reply, so the server had
+// to supply the sentence, and the only sentence it had was in English: a German
+// shop asked "Was ist das billigste in dem Shop?" and got an English apology
+// from an assistant that had answered them in German the day before. So the
+// model writes the sentence itself, after the marker, and the marker still
+// tells us the question went unanswered.
+const CLOSING_RULE = `GREETINGS AND SMALL TALK: If the customer is only greeting you, thanking you,
+saying goodbye, or chatting — not asking a question — do NOT use the unresolved
+marker. Reply warmly in one or two sentences and invite them to ask about
+products, orders, shipping or returns.
+
+UNANSWERED QUESTIONS: If the customer asks something the knowledge base does
+not answer, reply with __UNRESOLVED__ on the first line, then ONE short friendly
+sentence saying you are not sure and the store team will follow up.
+
 Never invent policies, prices, shipping times, or order details.`;
 
 function systemPrompt(allLanguages: boolean): string {
