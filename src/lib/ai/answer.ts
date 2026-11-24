@@ -57,7 +57,7 @@ const SYSTEM_PROMPT = systemPrompt(true);
 // 404 "no longer available to new users", which silently took every answer in
 // every shop down. Never depend on a single model name — try each in order and
 // fall through when one is gone.
-const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
+const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-flash-latest'];
 
 // Thinking tokens are spent out of maxOutputTokens, and a big knowledge base
 // left nothing for the actual reply. Retrieval-style answering needs no
@@ -81,42 +81,51 @@ async function callGemini(prompt: string, system: string = SYSTEM_PROMPT): Promi
   if (!key) return null;
 
   for (const model of GEMINI_MODELS) {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: system }] },
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 1200,
-            thinkingConfig: thinkingConfig(model),
-          },
-        }),
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: system }] },
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.2,
+              maxOutputTokens: 1200,
+              thinkingConfig: thinkingConfig(model),
+            },
+          }),
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = extractGeminiText(data);
+        if (text) return text;
+        console.error('[gemini] empty completion', {
+          model,
+          finishReason: data?.candidates?.[0]?.finishReason,
+          blockReason: data?.promptFeedback?.blockReason,
+        });
+        return null;
       }
-    );
 
-    if (res.ok) {
-      const data = await res.json();
-      const text = extractGeminiText(data);
-      if (text) return text;
-      console.error('[gemini] empty completion', {
-        model,
-        finishReason: data?.candidates?.[0]?.finishReason,
-        blockReason: data?.promptFeedback?.blockReason,
-      });
-      return null;
+      const detail = (await res.text()).slice(0, 300);
+      console.error('[gemini] http error', { model, status: res.status, detail });
+      // 404 = model retired, 400 = this model rejects our request shape, 503 =
+      // this model is momentarily overloaded. All three are survivable by moving
+      // down the list: 'gemini-flash-latest' answered 503 in the same second that
+      // 'gemini-3.6-flash' answered normally. A 429 is about our key, so no other
+      // model would help — hand over to Groq.
+      if (res.status !== 404 && res.status !== 400 && res.status !== 503) return null;
+    } catch (err) {
+      // A hung or throwing model must cost us only itself, not the healthy
+      // models behind it: 'gemini-flash-latest' timed out in the same run
+      // where 'gemini-3.6-flash' answered normally.
+      console.error('[llm] model attempt threw', { model, err: String(err).slice(0, 200) });
     }
-
-    const detail = (await res.text()).slice(0, 300);
-    console.error('[gemini] http error', { model, status: res.status, detail });
-    // 404 = model retired, 400 = this model rejects our request shape. Both are
-    // worth retrying on the next model. A 429 or 5xx is about the key or the
-    // service, so another model would fail the same way — hand over to Groq.
-    if (res.status !== 404 && res.status !== 400) return null;
   }
   return null;
 }
@@ -137,32 +146,59 @@ function extractGeminiText(data: unknown): string | null {
   return text || null;
 }
 
+// Groq retires models exactly as Google does, but this provider was pinned to a
+// single name. When 'llama-3.3-70b-versatile' was withdrawn, every Groq call
+// started returning 404 and the app quietly lost its whole fallback — one
+// provider wearing the costume of two. Shoppers only met it when Gemini
+// stumbled, which is exactly the moment the fallback existed for. So: a list,
+// for the same reason Gemini has one.
+const GROQ_MODELS = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'];
+
 async function callGroq(prompt: string, system: string = SYSTEM_PROMPT): Promise<string | null> {
   const key = process.env.GROQ_API_KEY;
   if (!key) return null;
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${key}`,
-    },
-    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      temperature: 0.2,
-      max_tokens: 400,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: prompt },
-      ],
-    }),
-  });
-  if (!res.ok) {
-    console.error('[groq] http error', res.status, (await res.text()).slice(0, 300));
-    return null;
+
+  for (const model of GROQ_MODELS) {
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${key}`,
+        },
+        signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+        body: JSON.stringify({
+          model,
+          temperature: 0.2,
+          max_tokens: 400,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: prompt },
+          ],
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.choices?.[0]?.message?.content?.trim();
+        if (text) return text;
+        console.error('[groq] empty completion', { model });
+        return null;
+      }
+
+      const detail = (await res.text()).slice(0, 300);
+      console.error('[groq] http error', { model, status: res.status, detail });
+      // Same rule as Gemini above: a retired, rejecting or overloaded model is
+      // worth replacing; anything else is about the key and will not improve.
+      if (res.status !== 404 && res.status !== 400 && res.status !== 503) return null;
+    } catch (err) {
+      // A hung or throwing model must cost us only itself, not the healthy
+      // models behind it: 'gemini-flash-latest' timed out in the same run
+      // where 'gemini-3.6-flash' answered normally.
+      console.error('[llm] model attempt threw', { model, err: String(err).slice(0, 200) });
+    }
   }
-  const data = await res.json();
-  return data?.choices?.[0]?.message?.content?.trim() ?? null;
+  return null;
 }
 
 const PROVIDERS: Array<{ name: string; fn: (p: string, system?: string) => Promise<string | null> }> = [
@@ -265,35 +301,42 @@ export async function assessDamagePhotos(
   // model too, so damage assessment had been failing silently alongside it.
   for (const model of GEMINI_MODELS) {
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: DAMAGE_PROMPT }] },
-            contents: [{
-              role: 'user',
-              parts: [
-                { text: 'What is wrong with this item?' },
-                ...photos.map((p) => ({
-                  inlineData: { mimeType: p.mimeType, data: p.base64 },
-                })),
-              ],
-            }],
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 800,
-              thinkingConfig: thinkingConfig(model),
-            },
-          }),
-        }
-      );
-      if (res.ok) return extractGeminiText(await res.json());
-      console.error('[gemini/vision] http error', { model, status: res.status });
-      if (res.status !== 404 && res.status !== 400) return null;
-    } catch {
-      return null;
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: DAMAGE_PROMPT }] },
+              contents: [{
+                role: 'user',
+                parts: [
+                  { text: 'What is wrong with this item?' },
+                  ...photos.map((p) => ({
+                    inlineData: { mimeType: p.mimeType, data: p.base64 },
+                  })),
+                ],
+              }],
+              generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 800,
+                thinkingConfig: thinkingConfig(model),
+              },
+            }),
+          }
+        );
+        if (res.ok) return extractGeminiText(await res.json());
+        console.error('[gemini/vision] http error', { model, status: res.status });
+        if (res.status !== 404 && res.status !== 400) return null;
+      } catch {
+        return null;
+      }
+    } catch (err) {
+      // A hung or throwing model must cost us only itself, not the healthy
+      // models behind it: 'gemini-flash-latest' timed out in the same run
+      // where 'gemini-3.6-flash' answered normally.
+      console.error('[llm] model attempt threw', { model, err: String(err).slice(0, 200) });
     }
   }
   return null;
