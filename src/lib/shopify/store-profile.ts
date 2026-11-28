@@ -26,6 +26,7 @@ export type StoreProfile = {
   country: string | null;
   collections: string[];
   productTypes: string[];
+  products: { title: string; type: string | null; price: string | null }[];
 };
 
 const PROFILE_QUERY = /* GraphQL */ `
@@ -42,6 +43,15 @@ const PROFILE_QUERY = /* GraphQL */ `
     collections(first: 20, sortKey: TITLE) {
       edges { node { title productsCount { count } } }
     }
+    products(first: 30, sortKey: BEST_SELLING) {
+      edges {
+        node {
+          title
+          productType
+          priceRangeV2 { minVariantPrice { amount currencyCode } }
+        }
+      }
+    }
   }
 `;
 
@@ -55,6 +65,9 @@ const MINIMAL_QUERY = /* GraphQL */ `
     shop {
       name
       primaryDomain { url }
+    }
+    products(first: 30) {
+      edges { node { title } }
     }
     collections(first: 20, sortKey: TITLE) {
       edges { node { title productsCount { count } } }
@@ -145,6 +158,18 @@ export async function fetchStoreProfile(
         .filter((n: any) => (n?.productsCount?.count ?? 0) > 0)
         .map((n: any) => String(n.title).trim())
         .filter(Boolean),
+      products: (data?.data?.products?.edges ?? [])
+        .map((e: any) => e?.node)
+        .filter((n: any) => n?.title)
+        .map((n: any) => {
+          const amount = n.priceRangeV2?.minVariantPrice?.amount;
+          const code = n.priceRangeV2?.minVariantPrice?.currencyCode;
+          return {
+            title: String(n.title).trim(),
+            type: n.productType?.trim() || null,
+            price: amount ? `${amount}${code ? ' ' + code : ''}` : null,
+          };
+        }),
     };
 
     for (const [key, v] of profileCache) {
@@ -171,5 +196,16 @@ export function storeProfileText(profile: StoreProfile | null): string | null {
     lines.push(`Collections customers can browse: ${profile.collections.join(', ')}`);
   if (profile.productTypes.length)
     lines.push(`Kinds of products sold: ${profile.productTypes.join(', ')}`);
+  if (profile.products.length) {
+    // Named products, so the assistant can say what is actually on the shelf
+    // instead of asking the shopper which product they meant.
+    lines.push('Products currently on sale:');
+    for (const p of profile.products) {
+      const bits = [p.title];
+      if (p.price) bits.push(`from ${p.price}`);
+      if (p.type) bits.push(`(${p.type})`);
+      lines.push(`- ${bits.join(' ')}`);
+    }
+  }
   return lines.join('\n');
 }

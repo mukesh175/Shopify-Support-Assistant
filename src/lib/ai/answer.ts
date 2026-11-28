@@ -23,7 +23,15 @@ it is based, how to reach it - and to point shoppers at the right collection.
 
 The STORE KNOWLEDGE BASE holds the answers the shop owner wrote. Use it for
 policies and specifics: returns, shipping, payment, sizing, and anything else
-the owner has spelled out.`;
+the owner has spelled out.
+
+When the shopper asks about products in general, name a few real ones from the
+STORE PROFILE rather than asking them which product they mean. Only ask them to
+narrow it down if you have already named some.
+
+FORMATTING: the chat window shows your reply as plain text, so write plain
+text. No markdown: no **bold**, no bullet characters, and never [text](link) -
+write a web address on its own, like viraabya.com.`;
 
 const MULTILINGUAL_RULE = `LANGUAGE: Detect the language of the customer's question and reply in that SAME
 language. If they write in Hindi, reply in Hindi. If Hinglish (Hindi in Latin
