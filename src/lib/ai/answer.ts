@@ -5,8 +5,25 @@
 
 type ChatResult = { text: string; provider: string };
 
+// The assistant used to be given the merchant's FAQ rows and nothing else, so
+// anything the merchant had not written out by hand was unanswerable. A
+// shopper asked "i need more information about website" and was told the team
+// would follow up - about the store they were standing in. The STORE PROFILE
+// section (name, collections, product types, contact) is real data read from
+// the shop, so the model may answer from it; it still may not invent anything
+// that appears in neither section.
 const BASE_PROMPT = `You are a customer support assistant for an online store.
-Answer ONLY using the provided store knowledge base. Be concise and friendly.`;
+
+Answer using ONLY the STORE PROFILE and STORE KNOWLEDGE BASE you are given. Be
+concise and friendly.
+
+The STORE PROFILE describes the shop itself. Use it to answer general questions
+about the store - what it is, what it sells, what customers can browse, where
+it is based, how to reach it - and to point shoppers at the right collection.
+
+The STORE KNOWLEDGE BASE holds the answers the shop owner wrote. Use it for
+policies and specifics: returns, shipping, payment, sizing, and anything else
+the owner has spelled out.`;
 
 const MULTILINGUAL_RULE = `LANGUAGE: Detect the language of the customer's question and reply in that SAME
 language. If they write in Hindi, reply in Hindi. If Hinglish (Hindi in Latin
@@ -251,13 +268,21 @@ export async function answerFromKnowledge(
   faqs: Array<{ question: string; answer: string }>,
   // Defaults to English-only so a caller that forgets to pass the plan cannot
   // hand out the paid multi-language behaviour by accident.
-  allLanguages = false
+  allLanguages = false,
+  // What the shop itself is, read from the Admin API. Null when it could not
+  // be read, which simply restores the knowledge-base-only behaviour.
+  storeProfile: string | null = null
 ): Promise<ChatResult> {
   const kb = faqs.length
     ? faqs.map((f, i) => `[${i + 1}] Q: ${f.question}\nA: ${f.answer}`).join('\n\n')
     : '(no knowledge base entries yet)';
 
-  const prompt = `STORE KNOWLEDGE BASE:\n${kb}\n\nCUSTOMER QUESTION:\n${question}`;
+  const profile = storeProfile ? `STORE PROFILE:
+${storeProfile}
+
+` : '';
+
+  const prompt = `${profile}STORE KNOWLEDGE BASE:\n${kb}\n\nCUSTOMER QUESTION:\n${question}`;
   const system = systemPrompt(allLanguages);
 
   for (const p of PROVIDERS) {

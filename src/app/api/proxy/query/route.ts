@@ -4,6 +4,7 @@ import { getShopToken } from '@/lib/auth/session';
 import { lookupOrder, listOrdersByEmail } from '@/lib/shopify/orders';
 import { answerFromKnowledge, extractKeywords, rankProducts } from '@/lib/ai/answer';
 import { getActivePlan } from '@/lib/shopify/billing';
+import { fetchStoreProfile, storeProfileText } from '@/lib/shopify/store-profile';
 import { PLANS } from '@/lib/plans';
 import {
   recommendProducts,
@@ -278,7 +279,21 @@ async function handleQuery(req: NextRequest) {
     .from(schema.faqs)
     .where(and(eq(schema.faqs.shopDomain, shopDomain), eq(schema.faqs.enabled, true)));
 
-  const { text, provider } = await answerFromKnowledge(message, faqRows, plan.allLanguages);
+  // What the shop is, not just what the owner typed out. Without it the
+  // assistant could not answer "i need more information about website" for the
+  // store the shopper was standing in. Best-effort: no token, or an Admin API
+  // that will not answer, leaves it null and the reply falls back to the
+  // knowledge base exactly as before.
+  const profile = token
+    ? storeProfileText(await fetchStoreProfile(shopDomain, token))
+    : null;
+
+  const { text, provider } = await answerFromKnowledge(
+    message,
+    faqRows,
+    plan.allLanguages,
+    profile
+  );
 
   // A provider outage and a genuine gap in the knowledge base used to produce
   // the same reply, which made a shop with good answers look like it had none.
